@@ -1,0 +1,30 @@
+.app-layout {
+  display: flex;
+  height: 100vh;
+  height: 100dvh; /* Dynamic viewport height for mobile */
+  width: 100%;
+  overflow: hidden;
+  background-color: var(--color-background);
+}
+
+.main-content {
+  flex: 1;
+  height: 100%;
+  overflow: hidden;
+  margin-left: 0;
+  position: relative;
+}
+
+
+/* Page transition animation */
+.main-content::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 200px;
+  background: radial-gradient(ellipse at center top, rgba(0, 212, 11, 0.03) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
