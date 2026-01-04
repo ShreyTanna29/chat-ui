@@ -75,9 +75,21 @@ export async function streamChat(
               try {
                 const data = JSON.parse(dataStr);
 
+                // Try to extract conversationId from any field - backends may use different names
+                const possibleId =
+                  data.conversationId ||
+                  data.conversation_id ||
+                  data.convId ||
+                  data.id;
+                if (possibleId && !conversationId) {
+                  conversationId = possibleId;
+                  console.log("[Chat] Got conversationId:", conversationId);
+                }
+
                 switch (data.type) {
                   case "connected":
-                    // Stream started
+                    // Stream started - may include conversationId
+                    console.log("[Chat] Stream connected:", data);
                     break;
 
                   case "chunk":
@@ -88,6 +100,7 @@ export async function streamChat(
                     break;
 
                   case "done":
+                    console.log("[Chat] Stream done:", data);
                     if (data.conversationId) {
                       conversationId = data.conversationId;
                     }

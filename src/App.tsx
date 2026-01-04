@@ -154,9 +154,11 @@ export default function App() {
       };
 
       let currentConversationId = activeConversationId;
+      let isNewConversation = false;
 
       // If no active conversation, create a new one locally
       if (!currentConversationId) {
+        isNewConversation = true;
         const newConversation: Conversation = {
           id: generateId(), // Temporary ID, will be replaced by server
           title: content.slice(0, 30) + (content.length > 30 ? "..." : ""),
@@ -181,10 +183,12 @@ export default function App() {
       setIsLoading(true);
       setStreamingContent("");
 
+      // For new conversations, don't send conversationId - let server create one
+      // For existing conversations, send the actual ID (which should be the server's ID)
       const { abort } = await streamChat(
         {
           prompt: content,
-          conversationId: activeConversationId || undefined,
+          conversationId: isNewConversation ? undefined : currentConversationId,
         },
         {
           onChunk: (chunk) => {
