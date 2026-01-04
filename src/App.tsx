@@ -112,25 +112,19 @@ export default function App() {
     setSidebarOpen(false);
   }, []);
 
-  const handleSelectConversation = useCallback(
-    async (id: string) => {
-      // Cancel any ongoing stream
-      if (abortRef.current) {
-        abortRef.current();
-        abortRef.current = null;
-      }
-      setStreamingContent("");
-      setActiveConversationId(id);
-      setSidebarOpen(false);
+  const handleSelectConversation = useCallback(async (id: string) => {
+    // Cancel any ongoing stream
+    if (abortRef.current) {
+      abortRef.current();
+      abortRef.current = null;
+    }
+    setStreamingContent("");
+    setActiveConversationId(id);
+    setSidebarOpen(false);
 
-      // Load full conversation if needed
-      const conv = conversations.find((c) => c.id === id);
-      if (conv && conv.messages.length === 0) {
-        await loadFullConversation(id);
-      }
-    },
-    [conversations]
-  );
+    // Always load full conversation since the list API only returns partial messages
+    await loadFullConversation(id);
+  }, []);
 
   const handleDeleteConversation = useCallback(
     async (id: string) => {
