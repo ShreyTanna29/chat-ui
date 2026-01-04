@@ -1,29 +1,32 @@
-import { useState } from 'react'
-import { 
-  Plus, 
-  MessageSquare, 
-  MoreHorizontal, 
-  Settings, 
+import { useState } from "react";
+import {
+  Plus,
+  MessageSquare,
+  MoreHorizontal,
   Menu,
   X,
   Trash2,
-  Crown
-} from 'lucide-react'
-import { cn } from '@/lib/utils'
+  Crown,
+  LogOut,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface Conversation {
-  id: string
-  title: string
-  date: string
+  id: string;
+  title: string;
+  date: string;
 }
 
 interface SidebarProps {
-  conversations: Conversation[]
-  activeConversationId: string | null
-  onNewChat: () => void
-  onSelectConversation: (id: string) => void
-  isOpen: boolean
-  onToggle: () => void
+  conversations: Conversation[];
+  activeConversationId: string | null;
+  onNewChat: () => void;
+  onSelectConversation: (id: string) => void;
+  onDeleteConversation?: (id: string) => void;
+  onLogout?: () => void;
+  userName?: string;
+  isOpen: boolean;
+  onToggle: () => void;
 }
 
 export function Sidebar({
@@ -31,16 +34,19 @@ export function Sidebar({
   activeConversationId,
   onNewChat,
   onSelectConversation,
+  onDeleteConversation,
+  onLogout,
+  userName = "User",
   isOpen,
-  onToggle
+  onToggle,
 }: SidebarProps) {
-  const [hoveredId, setHoveredId] = useState<string | null>(null)
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
 
   return (
     <>
       {/* Mobile overlay */}
       {isOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/70 backdrop-blur-sm z-40 md:hidden animate-fade-in"
           onClick={onToggle}
         />
@@ -52,7 +58,9 @@ export function Sidebar({
           "fixed md:relative z-50 h-full w-[280px] flex flex-col",
           "bg-[var(--color-sidebar)] border-r border-[var(--color-border)]",
           "transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]",
-          isOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full md:translate-x-0"
+          isOpen
+            ? "translate-x-0 shadow-2xl"
+            : "-translate-x-full md:translate-x-0"
         )}
       >
         {/* Header */}
@@ -61,11 +69,17 @@ export function Sidebar({
           <div className="flex items-center justify-between px-1">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/20 overflow-hidden">
-                <img src="/logo.jpg" alt="Erudite Logo" className="w-full h-full object-cover" />
+                <img
+                  src="/logo.jpg"
+                  alt="Erudite Logo"
+                  className="w-full h-full object-cover"
+                />
               </div>
-              <span className="font-bold text-lg text-[var(--color-text-primary)] tracking-tight">Erudite</span>
+              <span className="font-bold text-lg text-[var(--color-text-primary)] tracking-tight">
+                Erudite
+              </span>
             </div>
-            
+
             <button
               onClick={onToggle}
               className="md:hidden p-2 rounded-lg hover:bg-[var(--color-surface)] transition-all"
@@ -73,7 +87,7 @@ export function Sidebar({
               <X size={20} />
             </button>
           </div>
-          
+
           {/* New chat button */}
           <button
             onClick={onNewChat}
@@ -85,7 +99,10 @@ export function Sidebar({
               "text-[15px] font-semibold text-[var(--color-text-primary)]"
             )}
           >
-            <Plus size={20} className="text-emerald-400 group-hover:rotate-90 transition-transform duration-300" />
+            <Plus
+              size={20}
+              className="text-emerald-400 group-hover:rotate-90 transition-transform duration-300"
+            />
             <span>New chat</span>
           </button>
         </div>
@@ -100,7 +117,10 @@ export function Sidebar({
           {conversations.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-[60%] text-center px-4">
               <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-[var(--color-surface)] to-[var(--color-surface-hover)] flex items-center justify-center mb-5 border border-[var(--color-border)] shadow-inner">
-                <MessageSquare size={32} className="text-[var(--color-text-muted)] opacity-50" />
+                <MessageSquare
+                  size={32}
+                  className="text-[var(--color-text-muted)] opacity-50"
+                />
               </div>
               <p className="text-[var(--color-text-primary)] text-base font-semibold mb-2">
                 No conversations yet
@@ -129,30 +149,41 @@ export function Sidebar({
                   {activeConversationId === conv.id && (
                     <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-gradient-to-b from-emerald-400 to-emerald-600 rounded-r-full shadow-[0_0_12px_rgba(52,211,153,0.5)]" />
                   )}
-                  
-                  <MessageSquare 
-                    size={18} 
+
+                  <MessageSquare
+                    size={18}
                     className={cn(
                       "flex-shrink-0 transition-colors",
-                      activeConversationId === conv.id ? "text-emerald-400" : "opacity-70 group-hover:opacity-100"
-                    )} 
+                      activeConversationId === conv.id
+                        ? "text-emerald-400"
+                        : "opacity-70 group-hover:opacity-100"
+                    )}
                   />
-                  <span className="flex-1 truncate text-sm font-medium tracking-wide">{conv.title}</span>
-                  
+                  <span className="flex-1 truncate text-sm font-medium tracking-wide">
+                    {conv.title}
+                  </span>
+
                   {/* Action buttons */}
-                  <div className={cn(
-                    "flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity absolute right-2 bg-gradient-to-l from-[var(--color-surface-hover)] to-transparent pl-4",
-                    hoveredId === conv.id ? "opacity-100" : ""
-                  )}>
-                    <button 
+                  <div
+                    className={cn(
+                      "flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity absolute right-2 bg-gradient-to-l from-[var(--color-surface-hover)] to-transparent pl-4",
+                      hoveredId === conv.id ? "opacity-100" : ""
+                    )}
+                  >
+                    <button
                       className="p-1.5 rounded-lg hover:bg-[var(--color-surface-active)] text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] transition-colors"
-                      onClick={(e) => { e.stopPropagation(); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                      }}
                     >
                       <MoreHorizontal size={16} />
                     </button>
-                    <button 
+                    <button
                       className="p-1.5 rounded-lg hover:bg-red-500/10 text-[var(--color-text-muted)] hover:text-red-400 transition-colors"
-                      onClick={(e) => { e.stopPropagation(); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDeleteConversation?.(conv.id);
+                      }}
                     >
                       <Trash2 size={16} />
                     </button>
@@ -170,36 +201,48 @@ export function Sidebar({
 
         {/* Footer */}
         <div className="flex-shrink-0 p-5">
-          <button className={cn(
-            "w-full flex items-center gap-3.5 px-3.5 py-3.5 rounded-2xl transition-all group",
-            "hover:bg-[var(--color-surface)] relative overflow-hidden border border-transparent hover:border-[var(--color-border)]"
-          )}>
+          <button
+            className={cn(
+              "w-full flex items-center gap-3.5 px-3.5 py-3.5 rounded-2xl transition-all group",
+              "hover:bg-[var(--color-surface)] relative overflow-hidden border border-transparent hover:border-[var(--color-border)]"
+            )}
+          >
             {/* Shimmer effect */}
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity animate-shimmer" />
-            
+
             {/* Avatar */}
             <div className="relative flex-shrink-0">
               <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white font-bold text-base shadow-lg shadow-emerald-500/20">
-                U
+                {userName.charAt(0).toUpperCase()}
               </div>
               {/* Online indicator */}
               <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-green-400 border-[3px] border-[var(--color-sidebar)] shadow-sm" />
             </div>
-            
+
             {/* User info */}
             <div className="flex-1 text-left relative min-w-0">
               <div className="flex items-center gap-1.5 mb-0.5">
-                <span className="text-[15px] font-semibold text-[var(--color-text-primary)] truncate">User</span>
+                <span className="text-[15px] font-semibold text-[var(--color-text-primary)] truncate">
+                  {userName}
+                </span>
                 <Crown size={14} className="text-amber-400 flex-shrink-0" />
               </div>
-              <div className="text-xs text-[var(--color-text-muted)] font-medium">Free plan</div>
+              <div className="text-xs text-[var(--color-text-muted)] font-medium">
+                Free plan
+              </div>
             </div>
-            
-            {/* Settings icon */}
-            <Settings 
-              size={20} 
-              className="flex-shrink-0 text-[var(--color-text-muted)] group-hover:text-[var(--color-text-secondary)] group-hover:rotate-90 transition-all duration-300" 
-            />
+
+            {/* Logout icon */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onLogout?.();
+              }}
+              className="p-2 rounded-lg hover:bg-red-500/10 text-[var(--color-text-muted)] hover:text-red-400 transition-colors"
+              title="Logout"
+            >
+              <LogOut size={20} />
+            </button>
           </button>
         </div>
       </aside>
@@ -218,5 +261,5 @@ export function Sidebar({
         <Menu size={20} />
       </button>
     </>
-  )
+  );
 }

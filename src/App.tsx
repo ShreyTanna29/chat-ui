@@ -1,99 +1,274 @@
-import { useState, useCallback } from 'react'
-import { Sidebar } from '@/components/Sidebar'
-import { ChatContainer } from '@/components/ChatContainer'
-import './App.css'
+import { useState, useCallback, useEffect, useRef } from "react";
+import { Sidebar } from "@/components/Sidebar";
+import { ChatContainer } from "@/components/ChatContainer";
+import { AuthPage } from "@/components/AuthPage";
+import { useAuth } from "@/contexts/AuthContext";
+import { streamChat } from "@/services/chat";
+import {
+  getConversations,
+  getConversation,
+  deleteConversation as apiDeleteConversation,
+} from "@/services/conversations";
+import "./App.css";
 
 interface Message {
-  id: string
-  role: 'user' | 'assistant'
-  content: string
+  id: string;
+  role: "user" | "assistant";
+  content: string;
 }
 
 interface Conversation {
-  id: string
-  title: string
-  date: string
-  messages: Message[]
+  id: string;
+  title: string;
+  date: string;
+  messages: Message[];
 }
-
-// Simulated AI responses
-const aiResponses = [
-  "I'd be happy to help you with that! Let me think about the best approach...\n\nBased on your question, here's what I suggest:\n\n1. First, consider the core requirements\n2. Break down the problem into smaller parts\n3. Implement each part systematically\n4. Test thoroughly as you go\n\nWould you like me to elaborate on any of these steps?",
-  "That's a great question! Here's a comprehensive answer:\n\nThe key insight is understanding the underlying principles. Once you grasp those, everything else falls into place.\n\nLet me know if you need more specific guidance on any particular aspect.",
-  "I understand what you're looking for. Here's my take:\n\nThere are several approaches you could take, each with their own trade-offs. The best choice depends on your specific context and constraints.\n\nWhat's most important to you - speed, simplicity, or flexibility?",
-  "Interesting! Let me help you explore this further.\n\nFrom what I can see, you're on the right track. Here are a few suggestions to make it even better:\n\n• Consider edge cases carefully\n• Keep your code modular and reusable\n• Document your decisions for future reference\n\nDoes this help point you in the right direction?"
-]
 
 function generateId() {
-  return Math.random().toString(36).substring(2, 9)
-}
-
-function getRandomResponse() {
-  return aiResponses[Math.floor(Math.random() * aiResponses.length)]
+  return Math.random().toString(36).substring(2, 9);
 }
 
 export default function App() {
-  const [conversations, setConversations] = useState<Conversation[]>([])
-  const [activeConversationId, setActiveConversationId] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
-  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const {
+    user,
+    isLoading: authLoading,
+    isAuthenticated,
+    login,
+    signup,
+    logout,
+  } = useAuth();
 
-  const activeConversation = conversations.find(c => c.id === activeConversationId)
-  const messages = activeConversation?.messages || []
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [activeConversationId, setActiveConversationId] = useState<
+    string | null
+  >(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [streamingContent, setStreamingContent] = useState("");
+
+  const abortRef = useRef<(() => void) | null>(null);
+
+  const activeConversation = conversations.find(
+    (c) => c.id === activeConversationId
+  );
+  const messages = activeConversation?.messages || [];
+
+  // Load conversations from API when authenticated
+  useEffect(() => {
+    const loadConversations = async () => {
+      if (!isAuthenticated) return;
+
+      const result = await getConversations();
+      if (result.success && result.conversations) {
+        const formattedConversations: Conversation[] = result.conversations.map(
+          (conv) => ({
+            id: conv.id,
+            title: conv.title,
+            date: conv.createdAt,
+            messages:
+              conv.messages?.map((msg) => ({
+                id: msg.id,
+                role: msg.role,
+                content: msg.content,
+              })) || [],
+          })
+        );
+        setConversations(formattedConversations);
+      }
+    };
+
+    loadConversations();
+  }, [isAuthenticated]);
+
+  // Load full conversation when selecting one
+  const loadFullConversation = async (convId: string) => {
+    const result = await getConversation(convId);
+    if (result.success && result.conversation) {
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.id === convId
+            ? {
+                ...c,
+                messages: result.conversation!.messages.map((msg) => ({
+                  id: msg.id,
+                  role: msg.role,
+                  content: msg.content,
+                })),
+              }
+            : c
+        )
+      );
+    }
+  };
 
   const handleNewChat = useCallback(() => {
-    setActiveConversationId(null)
-    setSidebarOpen(false)
-  }, [])
-
-  const handleSelectConversation = useCallback((id: string) => {
-    setActiveConversationId(id)
-    setSidebarOpen(false)
-  }, [])
-
-  const handleSend = useCallback(async (content: string) => {
-    const userMessage: Message = {
-      id: generateId(),
-      role: 'user',
-      content
+    // Cancel any ongoing stream
+    if (abortRef.current) {
+      abortRef.current();
+      abortRef.current = null;
     }
+    setStreamingContent("");
+    setActiveConversationId(null);
+    setSidebarOpen(false);
+  }, []);
 
-    // If no active conversation, create a new one
-    if (!activeConversationId) {
-      const newConversation: Conversation = {
-        id: generateId(),
-        title: content.slice(0, 30) + (content.length > 30 ? '...' : ''),
-        date: new Date().toISOString(),
-        messages: [userMessage]
+  const handleSelectConversation = useCallback(
+    async (id: string) => {
+      // Cancel any ongoing stream
+      if (abortRef.current) {
+        abortRef.current();
+        abortRef.current = null;
       }
-      setConversations(prev => [newConversation, ...prev])
-      setActiveConversationId(newConversation.id)
-    } else {
-      // Add message to existing conversation
-      setConversations(prev => prev.map(c => 
-        c.id === activeConversationId
-          ? { ...c, messages: [...c.messages, userMessage] }
-          : c
-      ))
-    }
+      setStreamingContent("");
+      setActiveConversationId(id);
+      setSidebarOpen(false);
 
-    // Simulate AI response
-    setIsLoading(true)
-    await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 1500))
+      // Load full conversation if needed
+      const conv = conversations.find((c) => c.id === id);
+      if (conv && conv.messages.length === 0) {
+        await loadFullConversation(id);
+      }
+    },
+    [conversations]
+  );
 
-    const assistantMessage: Message = {
-      id: generateId(),
-      role: 'assistant',
-      content: getRandomResponse()
-    }
+  const handleDeleteConversation = useCallback(
+    async (id: string) => {
+      const result = await apiDeleteConversation(id);
+      if (result.success) {
+        setConversations((prev) => prev.filter((c) => c.id !== id));
+        if (activeConversationId === id) {
+          setActiveConversationId(null);
+        }
+      }
+    },
+    [activeConversationId]
+  );
 
-    setConversations(prev => prev.map(c => 
-      c.id === (activeConversationId || prev[0]?.id)
-        ? { ...c, messages: [...c.messages, assistantMessage] }
-        : c
-    ))
-    setIsLoading(false)
-  }, [activeConversationId])
+  const handleSend = useCallback(
+    async (content: string) => {
+      const userMessage: Message = {
+        id: generateId(),
+        role: "user",
+        content,
+      };
+
+      let currentConversationId = activeConversationId;
+
+      // If no active conversation, create a new one locally
+      if (!currentConversationId) {
+        const newConversation: Conversation = {
+          id: generateId(), // Temporary ID, will be replaced by server
+          title: content.slice(0, 30) + (content.length > 30 ? "..." : ""),
+          date: new Date().toISOString(),
+          messages: [userMessage],
+        };
+        setConversations((prev) => [newConversation, ...prev]);
+        setActiveConversationId(newConversation.id);
+        currentConversationId = newConversation.id;
+      } else {
+        // Add message to existing conversation
+        setConversations((prev) =>
+          prev.map((c) =>
+            c.id === currentConversationId
+              ? { ...c, messages: [...c.messages, userMessage] }
+              : c
+          )
+        );
+      }
+
+      // Start streaming
+      setIsLoading(true);
+      setStreamingContent("");
+
+      const { abort } = await streamChat(
+        {
+          prompt: content,
+          conversationId: activeConversationId || undefined,
+        },
+        {
+          onChunk: (chunk) => {
+            setStreamingContent((prev) => prev + chunk);
+          },
+          onDone: (fullResponse, serverConversationId) => {
+            const assistantMessage: Message = {
+              id: generateId(),
+              role: "assistant",
+              content: fullResponse,
+            };
+
+            setConversations((prev) =>
+              prev.map((c) => {
+                if (c.id === currentConversationId) {
+                  // Update conversation ID if server provided one
+                  const newId = serverConversationId || c.id;
+                  if (serverConversationId && c.id !== serverConversationId) {
+                    setActiveConversationId(serverConversationId);
+                  }
+                  return {
+                    ...c,
+                    id: newId,
+                    messages: [...c.messages, assistantMessage],
+                  };
+                }
+                return c;
+              })
+            );
+
+            setIsLoading(false);
+            setStreamingContent("");
+            abortRef.current = null;
+          },
+          onError: (error) => {
+            console.error("Chat error:", error);
+            // Add error message
+            const errorMessage: Message = {
+              id: generateId(),
+              role: "assistant",
+              content: `Sorry, I encountered an error: ${error}. Please try again.`,
+            };
+
+            setConversations((prev) =>
+              prev.map((c) =>
+                c.id === currentConversationId
+                  ? { ...c, messages: [...c.messages, errorMessage] }
+                  : c
+              )
+            );
+
+            setIsLoading(false);
+            setStreamingContent("");
+            abortRef.current = null;
+          },
+        }
+      );
+
+      abortRef.current = abort;
+    },
+    [activeConversationId]
+  );
+
+  // Show loading state while checking auth
+  if (authLoading) {
+    return (
+      <div className="h-screen w-screen flex items-center justify-center bg-background">
+        <div className="w-16 h-16 rounded-[20px] bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center shadow-2xl shadow-emerald-500/20 animate-float overflow-hidden">
+          <img
+            src="/logo.jpg"
+            alt="Erudite Logo"
+            className="w-full h-full object-cover"
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // Show auth page if not authenticated
+  if (!isAuthenticated) {
+    return (
+      <AuthPage onLogin={login} onSignup={signup} isLoading={authLoading} />
+    );
+  }
 
   return (
     <div className="app-layout">
@@ -102,6 +277,9 @@ export default function App() {
         activeConversationId={activeConversationId}
         onNewChat={handleNewChat}
         onSelectConversation={handleSelectConversation}
+        onDeleteConversation={handleDeleteConversation}
+        onLogout={logout}
+        userName={user?.name || "User"}
         isOpen={sidebarOpen}
         onToggle={() => setSidebarOpen(!sidebarOpen)}
       />
@@ -109,9 +287,10 @@ export default function App() {
         <ChatContainer
           messages={messages}
           isLoading={isLoading}
+          streamingContent={streamingContent}
           onSend={handleSend}
         />
       </main>
     </div>
-  )
+  );
 }
