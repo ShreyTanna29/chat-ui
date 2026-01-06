@@ -21,7 +21,7 @@ interface ChatContainerProps {
   messages: Message[];
   isLoading: boolean;
   streamingContent?: string;
-  onSend: (message: string) => void;
+  onSend: (message: string, image?: File, document?: File) => void;
 }
 
 const suggestions = [

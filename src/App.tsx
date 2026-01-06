@@ -140,7 +140,7 @@ export default function App() {
   );
 
   const handleSend = useCallback(
-    async (content: string) => {
+    async (content: string, image?: File, document?: File) => {
       const userMessage: Message = {
         id: generateId(),
         role: "user",
@@ -183,6 +183,8 @@ export default function App() {
         {
           prompt: content,
           conversationId: isNewConversation ? undefined : currentConversationId,
+          image,
+          document,
         },
         {
           onChunk: (chunk) => {

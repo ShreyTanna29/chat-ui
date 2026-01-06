@@ -1,4 +1,4 @@
-import { apiRawFetch } from "./api";
+import { apiRawFetch, apiFormDataFetch } from "./api";
 
 export interface StreamChatOptions {
   prompt: string;
@@ -6,6 +6,8 @@ export interface StreamChatOptions {
   model?: string;
   temperature?: number;
   maxTokens?: number;
+  image?: File; // Optional image file
+  document?: File; // Optional document file (PDF, DOCX, TXT)
 }
 
 export interface StreamCallbacks {
@@ -22,17 +24,44 @@ export async function streamChat(
   const controller = new AbortController();
 
   try {
-    const response = await apiRawFetch("/api/chat/stream", {
-      method: "POST",
-      body: JSON.stringify({
-        prompt: options.prompt,
-        conversationId: options.conversationId,
-        model: options.model || "gpt-4.1-mini",
-        temperature: options.temperature || 0.7,
-        maxTokens: options.maxTokens || 2000,
-      }),
-      signal: controller.signal,
-    });
+    const hasFiles = options.image || options.document;
+    let response: Response;
+
+    if (hasFiles) {
+      // Use FormData for file uploads
+      const formData = new FormData();
+      formData.append("prompt", options.prompt);
+      if (options.conversationId) {
+        formData.append("conversationId", options.conversationId);
+      }
+      formData.append("model", options.model || "gpt-4.1-mini");
+      formData.append("temperature", String(options.temperature || 0.7));
+      formData.append("maxTokens", String(options.maxTokens || 2000));
+
+      if (options.image) {
+        formData.append("image", options.image);
+      }
+      if (options.document) {
+        formData.append("document", options.document);
+      }
+
+      response = await apiFormDataFetch("/api/chat/stream", formData, {
+        signal: controller.signal,
+      });
+    } else {
+      // Use JSON for text-only messages
+      response = await apiRawFetch("/api/chat/stream", {
+        method: "POST",
+        body: JSON.stringify({
+          prompt: options.prompt,
+          conversationId: options.conversationId,
+          model: options.model || "gpt-4.1-mini",
+          temperature: options.temperature || 0.7,
+          maxTokens: options.maxTokens || 2000,
+        }),
+        signal: controller.signal,
+      });
+    }
 
     if (!response.ok) {
       const errorData = await response.json();

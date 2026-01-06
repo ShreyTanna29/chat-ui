@@ -78,3 +78,22 @@ export async function apiRawFetch(
     },
   });
 }
+
+// FormData fetch for file uploads (multipart/form-data)
+export async function apiFormDataFetch(
+  endpoint: string,
+  formData: FormData,
+  options?: Omit<RequestInit, "body">
+): Promise<Response> {
+  const token = getAccessToken();
+
+  return fetch(`${API_BASE_URL}${endpoint}`, {
+    method: "POST",
+    headers: {
+      // Don't set Content-Type - browser sets it with boundary for FormData
+      ...(token && { Authorization: `Bearer ${token}` }),
+    },
+    body: formData,
+    ...options,
+  });
+}
