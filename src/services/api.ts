@@ -1,5 +1,5 @@
 // API Configuration
-export const API_BASE_URL = "http://3.138.200.50:3000";
+export const API_BASE_URL = "https://eruditeaic.com";
 
 // Token management utilities
 export function getAccessToken(): string | null {
