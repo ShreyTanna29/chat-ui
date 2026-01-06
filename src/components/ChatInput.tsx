@@ -7,19 +7,29 @@ import {
   StopCircle,
   X,
   FileText,
+  CornerDownRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface ChatInputProps {
-  onSend: (message: string, image?: File, document?: File) => void;
+  onSend: (
+    message: string,
+    image?: File,
+    document?: File,
+    quotedText?: string
+  ) => void;
   disabled?: boolean;
   placeholder?: string;
+  quotedText?: string;
+  onClearQuote?: () => void;
 }
 
 export function ChatInput({
   onSend,
   disabled,
   placeholder = "Message Erudite...",
+  quotedText,
+  onClearQuote,
 }: ChatInputProps) {
   const [value, setValue] = useState("");
   const [isFocused, setIsFocused] = useState(false);
@@ -39,6 +49,13 @@ export function ChatInput({
       textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`;
     }
   }, [value]);
+
+  // Focus textarea when quote is added
+  useEffect(() => {
+    if (quotedText && textareaRef.current) {
+      textareaRef.current.focus();
+    }
+  }, [quotedText]);
 
   // Generate image preview when image file changes
   useEffect(() => {
@@ -68,8 +85,16 @@ export function ChatInput({
   };
 
   const handleSubmit = () => {
-    if ((value.trim() || imageFile || documentFile) && !disabled) {
-      onSend(value.trim(), imageFile || undefined, documentFile || undefined);
+    if (
+      (value.trim() || imageFile || documentFile || quotedText) &&
+      !disabled
+    ) {
+      onSend(
+        value.trim(),
+        imageFile || undefined,
+        documentFile || undefined,
+        quotedText || undefined
+      );
       setValue("");
       setImageFile(null);
       setDocumentFile(null);
@@ -88,13 +113,35 @@ export function ChatInput({
   };
 
   const canSend =
-    (value.trim().length > 0 || imageFile || documentFile) && !disabled;
+    (value.trim().length > 0 || imageFile || documentFile || quotedText) &&
+    !disabled;
   const charCount = value.length;
   const isNearLimit = charCount > 3500;
   const maxChars = 4000;
 
   return (
     <div className="w-full max-w-3xl mx-auto">
+      {/* Quoted text preview - like ChatGPT */}
+      {quotedText && (
+        <div className="mb-2 flex items-start gap-2 px-4 py-3 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl animate-in slide-in-from-bottom-2 duration-200">
+          <CornerDownRight
+            size={16}
+            className="text-emerald-400 mt-0.5 flex-shrink-0"
+          />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm text-[var(--color-text-secondary)] line-clamp-2 italic">
+              "{quotedText}"
+            </p>
+          </div>
+          <button
+            onClick={onClearQuote}
+            className="p-1 hover:bg-[var(--color-surface-active)] rounded-lg transition-colors text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]"
+          >
+            <X size={16} />
+          </button>
+        </div>
+      )}
+
       {/* Main input container */}
       <div
         className={cn(
@@ -209,7 +256,7 @@ export function ChatInput({
             onKeyDown={handleKeyDown}
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
-            placeholder={placeholder}
+            placeholder={quotedText ? "Ask about this..." : placeholder}
             disabled={disabled}
             maxLength={maxChars}
             rows={1}

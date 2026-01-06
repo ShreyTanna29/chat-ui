@@ -1,4 +1,4 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import {
   Code,
   Lightbulb,
@@ -78,6 +78,7 @@ export function ChatContainer({
   onSend,
 }: ChatContainerProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [quotedText, setQuotedText] = useState<string | null>(null);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -88,6 +89,26 @@ export function ChatContainer({
       });
     }
   }, [messages, isLoading]);
+
+  const handleSend = (
+    message: string,
+    image?: File,
+    document?: File,
+    quoted?: string
+  ) => {
+    // If there's a quoted text, prepend it as context
+    if (quoted) {
+      const fullMessage = message
+        ? `Regarding: "${quoted}"
+
+${message}`
+        : `Explain this: "${quoted}"`;
+      onSend(fullMessage, image, document);
+      setQuotedText(null);
+    } else {
+      onSend(message, image, document);
+    }
+  };
 
   const isEmpty = messages.length === 0;
 
@@ -299,6 +320,7 @@ export function ChatContainer({
                 key={message.id}
                 role={message.role}
                 content={message.content}
+                onAskErudite={(text) => setQuotedText(text)}
               />
             ))}
             {isLoading && (
@@ -314,7 +336,12 @@ export function ChatContainer({
 
       {/* Input area with enhanced gradient separator */}
       <div className="w-full flex justify-center mx-auto">
-        <ChatInput onSend={onSend} disabled={isLoading} />
+        <ChatInput
+          onSend={handleSend}
+          disabled={isLoading}
+          quotedText={quotedText || undefined}
+          onClearQuote={() => setQuotedText(null)}
+        />
       </div>
     </div>
   );
