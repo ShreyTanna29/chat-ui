@@ -8,7 +8,7 @@ import {
   Wand2,
 } from "lucide-react";
 import { ChatMessage } from "./ChatMessage";
-import { ChatInput } from "./ChatInput";
+import { ChatInput, ChatMode } from "./ChatInput";
 import { cn } from "@/lib/utils";
 
 interface Message {
@@ -21,7 +21,12 @@ interface ChatContainerProps {
   messages: Message[];
   isLoading: boolean;
   streamingContent?: string;
-  onSend: (message: string, image?: File, document?: File) => void;
+  onSend: (
+    message: string,
+    image?: File,
+    document?: File,
+    mode?: ChatMode
+  ) => void;
 }
 
 const suggestions = [
@@ -94,7 +99,8 @@ export function ChatContainer({
     message: string,
     image?: File,
     document?: File,
-    quoted?: string
+    quoted?: string,
+    mode?: ChatMode
   ) => {
     // If there's a quoted text, prepend it as context
     if (quoted) {
@@ -103,10 +109,10 @@ export function ChatContainer({
 
 ${message}`
         : `Explain this: "${quoted}"`;
-      onSend(fullMessage, image, document);
+      onSend(fullMessage, image, document, mode);
       setQuotedText(null);
     } else {
-      onSend(message, image, document);
+      onSend(message, image, document, mode);
     }
   };
 

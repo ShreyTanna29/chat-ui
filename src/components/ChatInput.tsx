@@ -2,21 +2,26 @@ import { useState, useRef, useEffect, KeyboardEvent, ChangeEvent } from "react";
 import {
   Send,
   Paperclip,
-  Mic,
   Image as ImageIcon,
-  StopCircle,
   X,
   FileText,
   CornerDownRight,
+  Zap,
+  Brain,
+  Search,
+  ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+export type ChatMode = "quick" | "think" | "research";
 
 interface ChatInputProps {
   onSend: (
     message: string,
     image?: File,
     document?: File,
-    quotedText?: string
+    quotedText?: string,
+    mode?: ChatMode
   ) => void;
   disabled?: boolean;
   placeholder?: string;
@@ -33,13 +38,38 @@ export function ChatInput({
 }: ChatInputProps) {
   const [value, setValue] = useState("");
   const [isFocused, setIsFocused] = useState(false);
-  const [isRecording, setIsRecording] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [documentFile, setDocumentFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [mode, setMode] = useState<ChatMode>("quick");
+  const [showModeDropdown, setShowModeDropdown] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const documentInputRef = useRef<HTMLInputElement>(null);
+  const modeDropdownRef = useRef<HTMLDivElement>(null);
+
+  const modes = [
+    {
+      id: "quick" as ChatMode,
+      label: "Quick",
+      icon: Zap,
+      description: "Fast responses",
+    },
+    {
+      id: "think" as ChatMode,
+      label: "Think",
+      icon: Brain,
+      description: "Deep reasoning",
+    },
+    {
+      id: "research" as ChatMode,
+      label: "Research",
+      icon: Search,
+      description: "Web search",
+    },
+  ];
+
+  const currentMode = modes.find((m) => m.id === mode) || modes[0];
 
   // Auto-resize textarea
   useEffect(() => {
@@ -84,6 +114,20 @@ export function ChatInput({
     e.target.value = ""; // Reset to allow re-selecting same file
   };
 
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        modeDropdownRef.current &&
+        !modeDropdownRef.current.contains(event.target as Node)
+      ) {
+        setShowModeDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   const handleSubmit = () => {
     if (
       (value.trim() || imageFile || documentFile || quotedText) &&
@@ -93,7 +137,8 @@ export function ChatInput({
         value.trim(),
         imageFile || undefined,
         documentFile || undefined,
-        quotedText || undefined
+        quotedText || undefined,
+        mode
       );
       setValue("");
       setImageFile(null);
@@ -207,9 +252,64 @@ export function ChatInput({
         />
 
         {/* Textarea row */}
-        <div className="flex items-end gap-4">
+        <div className="flex items-end gap-2">
           {/* Left actions */}
           <div className="flex items-center mb-2">
+            {/* Mode selector */}
+            <div ref={modeDropdownRef} className="relative">
+              <button
+                type="button"
+                onClick={() => setShowModeDropdown(!showModeDropdown)}
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all",
+                  "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]",
+                  "hover:bg-[var(--color-surface-active)]",
+                  "active:scale-95 text-sm font-medium"
+                )}
+                title="Select mode"
+              >
+                <currentMode.icon size={18} className="text-emerald-400" />
+                <span className="hidden sm:inline">{currentMode.label}</span>
+                <ChevronDown
+                  size={14}
+                  className={cn(
+                    "transition-transform",
+                    showModeDropdown && "rotate-180"
+                  )}
+                />
+              </button>
+
+              {/* Dropdown menu */}
+              {showModeDropdown && (
+                <div className="absolute bottom-full left-0 mb-2 w-48 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl shadow-xl overflow-hidden z-50 animate-in slide-in-from-bottom-2 duration-200">
+                  {modes.map((m) => (
+                    <button
+                      key={m.id}
+                      type="button"
+                      onClick={() => {
+                        setMode(m.id);
+                        setShowModeDropdown(false);
+                      }}
+                      className={cn(
+                        "w-full flex items-center gap-3 px-4 py-3 text-left transition-colors",
+                        m.id === mode
+                          ? "bg-emerald-500/10 text-emerald-400"
+                          : "text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-active)] hover:text-[var(--color-text-primary)]"
+                      )}
+                    >
+                      <m.icon size={18} />
+                      <div className="flex flex-col">
+                        <span className="text-sm font-medium">{m.label}</span>
+                        <span className="text-xs opacity-60">
+                          {m.description}
+                        </span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <button
               type="button"
               onClick={() => documentInputRef.current?.click()}
@@ -270,32 +370,6 @@ export function ChatInput({
 
           {/* Right actions */}
           <div className="flex items-center mb-2">
-            {/* Voice input */}
-            <button
-              type="button"
-              onClick={() => setIsRecording(!isRecording)}
-              className={cn(
-                "p-3 rounded-xl transition-all group relative overflow-hidden",
-                isRecording
-                  ? "bg-red-500/20 text-red-400 hover:bg-red-500/30"
-                  : "text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-active)]",
-                "active:scale-95"
-              )}
-              title={isRecording ? "Stop recording" : "Voice input"}
-            >
-              {isRecording ? (
-                <>
-                  <div className="absolute inset-0 bg-red-500/20 animate-pulse" />
-                  <StopCircle size={24} className="relative z-10" />
-                </>
-              ) : (
-                <Mic
-                  size={24}
-                  className="group-hover:scale-110 transition-transform"
-                />
-              )}
-            </button>
-
             {/* Send button */}
             <button
               onClick={handleSubmit}

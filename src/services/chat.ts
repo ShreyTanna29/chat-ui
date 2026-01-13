@@ -8,6 +8,8 @@ export interface StreamChatOptions {
   maxTokens?: number;
   image?: File; // Optional image file
   document?: File; // Optional document file (PDF, DOCX, TXT)
+  thinkMode?: boolean; // Enable deep reasoning mode
+  researchMode?: boolean; // Enable web research mode
 }
 
 export interface StreamCallbacks {
@@ -44,21 +46,37 @@ export async function streamChat(
       if (options.document) {
         formData.append("document", options.document);
       }
+      // Add mode flags if specified
+      if (options.thinkMode) {
+        formData.append("thinkMode", "true");
+      }
+      if (options.researchMode) {
+        formData.append("researchMode", "true");
+      }
 
       response = await apiFormDataFetch("/api/chat/stream", formData, {
         signal: controller.signal,
       });
     } else {
       // Use JSON for text-only messages
+      const bodyData: Record<string, unknown> = {
+        prompt: options.prompt,
+        conversationId: options.conversationId,
+        model: options.model || "gpt-4.1-mini",
+        temperature: options.temperature || 0.7,
+        maxTokens: options.maxTokens || 2000,
+      };
+      // Add mode flags if specified
+      if (options.thinkMode) {
+        bodyData.thinkMode = true;
+      }
+      if (options.researchMode) {
+        bodyData.researchMode = true;
+      }
+
       response = await apiRawFetch("/api/chat/stream", {
         method: "POST",
-        body: JSON.stringify({
-          prompt: options.prompt,
-          conversationId: options.conversationId,
-          model: options.model || "gpt-4.1-mini",
-          temperature: options.temperature || 0.7,
-          maxTokens: options.maxTokens || 2000,
-        }),
+        body: JSON.stringify(bodyData),
         signal: controller.signal,
       });
     }

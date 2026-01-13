@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { Sidebar } from "@/components/Sidebar";
 import { ChatContainer } from "@/components/ChatContainer";
 import { AuthPage } from "@/components/AuthPage";
+import { ChatMode } from "@/components/ChatInput";
 import { useAuth } from "@/contexts/AuthContext";
 import { streamChat } from "@/services/chat";
 import {
@@ -140,7 +141,7 @@ export default function App() {
   );
 
   const handleSend = useCallback(
-    async (content: string, image?: File, document?: File) => {
+    async (content: string, image?: File, document?: File, mode?: ChatMode) => {
       const userMessage: Message = {
         id: generateId(),
         role: "user",
@@ -185,6 +186,10 @@ export default function App() {
           conversationId: isNewConversation ? undefined : currentConversationId,
           image,
           document,
+          // Only send thinkMode if "think" is selected, researchMode if "research" is selected
+          // Don't send these flags if "quick" mode is selected (default behavior)
+          thinkMode: mode === "think" ? true : undefined,
+          researchMode: mode === "research" ? true : undefined,
         },
         {
           onChunk: (chunk) => {
