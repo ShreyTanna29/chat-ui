@@ -306,17 +306,6 @@ ${message}`
                 </button>
               ))}
             </div>
-
-            {/* Quick actions row */}
-            <div
-              className="flex items-center gap-3 animate-slide-up"
-              style={{ animationDelay: "400ms" }}
-            >
-              <button className="px-4 py-2 rounded-full bg-[var(--color-surface)] border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)] hover:border-[var(--color-border-hover)] transition-all text-xs font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] flex items-center gap-2 shadow-sm hover:shadow-md active:scale-95">
-                <Wand2 size={14} className="text-emerald-400" />
-                Surprise me
-              </button>
-            </div>
           </div>
         ) : (
           /* Messages list */
