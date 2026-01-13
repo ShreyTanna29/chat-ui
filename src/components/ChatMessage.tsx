@@ -9,6 +9,8 @@ import {
   Share2,
   Reply,
 } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { useState, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 
@@ -189,11 +191,35 @@ export function ChatMessage({
                 ref={contentRef}
                 onMouseUp={handleMouseUp}
                 className={cn(
-                  "text-[var(--color-text-primary)] leading-[1.75] whitespace-pre-wrap",
-                  "text-[15px]"
+                  "text-[var(--color-text-primary)] leading-[1.75]",
+                  "text-[15px]",
+                  "prose prose-invert max-w-none",
+                  "prose-p:leading-[1.75] prose-p:mb-4 last:prose-p:mb-0",
+                  "prose-headings:text-[var(--color-text-primary)] prose-headings:font-semibold prose-headings:mb-4 prose-headings:mt-6 first:prose-headings:mt-0",
+                  "prose-strong:text-[var(--color-text-primary)] prose-strong:font-semibold",
+                  "prose-a:text-emerald-400 prose-a:no-underline hover:prose-a:underline",
+                  "prose-code:text-[var(--color-text-primary)] prose-code:bg-[var(--color-surface)] prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-md prose-code:before:content-none prose-code:after:content-none prose-code:font-mono prose-code:text-[0.9em]",
+                  "prose-pre:bg-[var(--color-surface)] prose-pre:border prose-pre:border-[var(--color-border)] prose-pre:rounded-xl prose-pre:p-4",
+                  "prose-ul:my-4 prose-ul:list-disc prose-ul:pl-6",
+                  "prose-ol:my-4 prose-ol:list-decimal prose-ol:pl-6",
+                  "prose-li:my-1",
+                  "prose-blockquote:border-l-4 prose-blockquote:border-emerald-500/50 prose-blockquote:pl-4 prose-blockquote:italic prose-blockquote:text-[var(--color-text-secondary)]",
+                  "prose-hr:border-[var(--color-border)] prose-hr:my-6",
+                  "prose-table:w-full prose-table:my-6 prose-table:border-collapse",
+                  "prose-th:text-left prose-th:p-2 prose-th:border-b prose-th:border-[var(--color-border)] prose-th:text-[var(--color-text-primary)]",
+                  "prose-td:p-2 prose-td:border-b prose-td:border-[var(--color-border)] prose-td:text-[var(--color-text-secondary)]"
                 )}
               >
-                {content}
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    a: ({ node, ...props }: any) => (
+                      <a {...props} target="_blank" rel="noopener noreferrer" />
+                    ),
+                  }}
+                >
+                  {content}
+                </ReactMarkdown>
               </div>
 
               {/* Actions - enhanced */}
