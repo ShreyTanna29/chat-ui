@@ -1,8 +1,7 @@
-import { useState, useRef, useEffect, KeyboardEvent, ChangeEvent } from "react";
+import { useState, useRef, useEffect, KeyboardEvent } from "react";
 import {
   Send,
   Paperclip,
-  Image as ImageIcon,
   X,
   FileText,
   CornerDownRight,
@@ -44,8 +43,7 @@ export function ChatInput({
   const [mode, setMode] = useState<ChatMode>("quick");
   const [showModeDropdown, setShowModeDropdown] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const imageInputRef = useRef<HTMLInputElement>(null);
-  const documentInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const modeDropdownRef = useRef<HTMLDivElement>(null);
 
   const modes = [
@@ -97,22 +95,6 @@ export function ChatInput({
       setImagePreview(null);
     }
   }, [imageFile]);
-
-  const handleImageChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file && file.type.startsWith("image/")) {
-      setImageFile(file);
-    }
-    e.target.value = ""; // Reset to allow re-selecting same file
-  };
-
-  const handleDocumentChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setDocumentFile(file);
-    }
-    e.target.value = ""; // Reset to allow re-selecting same file
-  };
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -235,19 +217,22 @@ export function ChatInput({
           </div>
         )}
 
-        {/* Hidden file inputs */}
+        {/* Hidden file input for both images and documents */}
         <input
-          ref={imageInputRef}
+          ref={fileInputRef}
           type="file"
-          accept="image/*"
-          onChange={handleImageChange}
-          className="hidden"
-        />
-        <input
-          ref={documentInputRef}
-          type="file"
-          accept=".pdf,.doc,.docx,.txt,.md,.csv,.xls,.xlsx"
-          onChange={handleDocumentChange}
+          accept="image/*,.pdf,.doc,.docx,.txt,.md,.csv,.xls,.xlsx"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) {
+              if (file.type.startsWith("image/")) {
+                setImageFile(file);
+              } else {
+                setDocumentFile(file);
+              }
+            }
+            e.target.value = ""; // Reset to allow re-selecting same file
+          }}
           className="hidden"
         />
 
@@ -312,38 +297,20 @@ export function ChatInput({
 
             <button
               type="button"
-              onClick={() => documentInputRef.current?.click()}
+              onClick={() => fileInputRef.current?.click()}
               className={cn(
                 "p-3 rounded-xl transition-all group",
-                documentFile
+                imageFile || documentFile
                   ? "text-emerald-400 bg-emerald-500/10"
                   : "text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]",
                 "hover:bg-[var(--color-surface-active)]",
                 "active:scale-95"
               )}
-              title="Attach document"
+              title="Attach file"
             >
               <Paperclip
                 size={24}
                 className="group-hover:rotate-12 transition-transform"
-              />
-            </button>
-            <button
-              type="button"
-              onClick={() => imageInputRef.current?.click()}
-              className={cn(
-                "p-3 rounded-xl transition-all group",
-                imageFile
-                  ? "text-emerald-400 bg-emerald-500/10"
-                  : "text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]",
-                "hover:bg-[var(--color-surface-active)]",
-                "active:scale-95"
-              )}
-              title="Upload image"
-            >
-              <ImageIcon
-                size={24}
-                className="group-hover:scale-110 transition-transform"
               />
             </button>
           </div>
