@@ -201,10 +201,10 @@ export function Sidebar({
 
         {/* Footer */}
         <div className="flex-shrink-0 p-5">
-          <button
+          <div
             className={cn(
               "w-full flex items-center gap-3.5 px-3.5 py-3.5 rounded-2xl transition-all group",
-              "hover:bg-[var(--color-surface)] relative overflow-hidden border border-transparent hover:border-[var(--color-border)]"
+              "hover:bg-[var(--color-surface)] relative overflow-hidden border border-transparent hover:border-[var(--color-border)] cursor-default"
             )}
           >
             {/* Shimmer effect */}
@@ -238,12 +238,12 @@ export function Sidebar({
                 e.stopPropagation();
                 onLogout?.();
               }}
-              className="p-2 rounded-lg hover:bg-red-500/10 text-[var(--color-text-muted)] hover:text-red-400 transition-colors"
+              className="p-2 rounded-lg hover:bg-red-500/10 text-[var(--color-text-muted)] hover:text-red-400 transition-colors cursor-pointer relative z-10"
               title="Logout"
             >
               <LogOut size={20} />
             </button>
-          </button>
+          </div>
         </div>
       </aside>
 
