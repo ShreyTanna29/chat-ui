@@ -1,12 +1,5 @@
 import { useRef, useEffect, useState } from "react";
-import {
-  Code,
-  Lightbulb,
-  BookOpen,
-  Zap,
-  ArrowUpRight,
-  Wand2,
-} from "lucide-react";
+import { Code, Lightbulb, BookOpen, Zap, ArrowUpRight } from "lucide-react";
 import { ChatMessage } from "./ChatMessage";
 import { ChatInput, ChatMode } from "./ChatInput";
 import { cn } from "@/lib/utils";

@@ -1,7 +1,6 @@
 import {
   Copy,
   Check,
-  Sparkles,
   User,
   ThumbsUp,
   ThumbsDown,
