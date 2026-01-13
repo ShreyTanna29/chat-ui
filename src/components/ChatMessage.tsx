@@ -142,8 +142,11 @@ export function ChatMessage({
             <User size={18} className="text-gray-300" />
           ) : (
             <>
-              <Sparkles size={18} className="text-white" />
-              <div className="absolute inset-0 rounded-2xl bg-gradient-to-tr from-white/20 to-transparent" />
+              <img
+                src="/logo.jpg"
+                alt="Erudite Logo"
+                className="w-full h-full object-cover rounded-2xl"
+              />
             </>
           )}
         </div>
