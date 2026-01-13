@@ -128,7 +128,12 @@ export function ChatMessage({
         </div>
       )}
 
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 flex gap-4">
+      <div
+        className={cn(
+          "max-w-3xl mx-auto px-4 sm:px-6 flex gap-4",
+          isUser && "flex-row-reverse"
+        )}
+      >
         {/* Avatar */}
         <div
           className={cn(
@@ -153,7 +158,12 @@ export function ChatMessage({
 
         {/* Content */}
         <div className="flex-1 min-w-0 group">
-          <div className="flex items-center gap-2 mb-2.5">
+          <div
+            className={cn(
+              "flex items-center gap-2 mb-2.5",
+              isUser && "justify-end"
+            )}
+          >
             <span className="font-semibold text-sm text-[var(--color-text-primary)]">
               {isUser ? "You" : "Erudite"}
             </span>
@@ -210,7 +220,8 @@ export function ChatMessage({
                   "prose-hr:border-[var(--color-border)] prose-hr:my-6",
                   "prose-table:w-full prose-table:my-6 prose-table:border-collapse",
                   "prose-th:text-left prose-th:p-2 prose-th:border-b prose-th:border-[var(--color-border)] prose-th:text-[var(--color-text-primary)]",
-                  "prose-td:p-2 prose-td:border-b prose-td:border-[var(--color-border)] prose-td:text-[var(--color-text-secondary)]"
+                  "prose-td:p-2 prose-td:border-b prose-td:border-[var(--color-border)] prose-td:text-[var(--color-text-secondary)]",
+                  isUser && "text-right prose-p:text-right"
                 )}
               >
                 <ReactMarkdown
