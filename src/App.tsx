@@ -426,7 +426,7 @@ export default function App() {
   if (authLoading) {
     return (
       <div className="h-screen w-screen flex items-center justify-center bg-background">
-        <div className="w-16 h-16 rounded-[20px] bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center shadow-2xl shadow-emerald-500/20 animate-float overflow-hidden">
+        <div className="w-32 h-32 rounded-[20px] bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center shadow-2xl shadow-emerald-500/20 animate-float overflow-hidden">
           <img
             src="/logo.jpg"
             alt="Erudite Logo"

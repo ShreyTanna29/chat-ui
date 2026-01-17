@@ -318,6 +318,22 @@ export function ChatMessage({
                   >
                     <Share2 size={14} />
                   </button>
+
+                  <div className="w-px h-5 bg-[var(--color-border)]" />
+
+                  <button
+                    onClick={() => onAskErudite?.(content)}
+                    className={cn(
+                      "flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all",
+                      "border border-[var(--color-border)] hover:border-emerald-500/30",
+                      "text-[var(--color-text-secondary)] hover:text-emerald-400",
+                      "hover:bg-emerald-500/10 active:scale-95"
+                    )}
+                    title="Reply to this message"
+                  >
+                    <Reply size={14} />
+                    <span>Reply</span>
+                  </button>
                 </div>
               )}
             </>
