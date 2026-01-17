@@ -89,9 +89,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    // Check if this is an Apple callback
+    // Check if this is an Apple/OAuth callback from backend
     // Backend redirects here with tokens after processing Apple's form_post
-    if (path === "/auth/apple/callback") {
+    if (path === "/auth/apple/callback" || path === "/auth/callback") {
       setIsLoading(true);
       try {
         const searchParams = new URLSearchParams(search.substring(1));
@@ -141,7 +141,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const checkAuth = async () => {
       // First check if this is an OAuth callback
       const path = window.location.pathname;
-      if (path === "/auth/google/callback" || path === "/auth/apple/callback") {
+      if (
+        path === "/auth/google/callback" ||
+        path === "/auth/apple/callback" ||
+        path === "/auth/callback"
+      ) {
         await handleOAuthCallback();
         return;
       }
