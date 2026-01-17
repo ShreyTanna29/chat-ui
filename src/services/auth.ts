@@ -152,3 +152,105 @@ export async function updateProfile(updates: {
 
   return { success: false, message: response.message };
 }
+
+// Google OAuth login
+export async function googleLogin(token: string): Promise<{
+  success: boolean;
+  user?: User;
+  message?: string;
+}> {
+  const response = await apiFetch<{
+    user: User;
+    accessToken: string;
+    refreshToken: string;
+  }>("/api/auth/google", {
+    method: "POST",
+    body: JSON.stringify({ token }),
+  });
+
+  if (response.success && response.data) {
+    setTokens(response.data.accessToken, response.data.refreshToken);
+    return { success: true, user: response.data.user };
+  }
+
+  return { success: false, message: response.message };
+}
+
+// Apple OAuth login
+export async function appleLogin(
+  idToken: string,
+  name?: { firstName?: string; lastName?: string }
+): Promise<{
+  success: boolean;
+  user?: User;
+  message?: string;
+}> {
+  const response = await apiFetch<{
+    user: User;
+    accessToken: string;
+    refreshToken: string;
+  }>("/api/auth/apple", {
+    method: "POST",
+    body: JSON.stringify({ idToken, name }),
+  });
+
+  if (response.success && response.data) {
+    setTokens(response.data.accessToken, response.data.refreshToken);
+    return { success: true, user: response.data.user };
+  }
+
+  return { success: false, message: response.message };
+}
+
+// Get Google OAuth URL - initiates the OAuth flow
+export function getGoogleOAuthUrl(): string {
+  const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+  const redirectUri = `${window.location.origin}/auth/google/callback`;
+  const scope = "openid email profile";
+  const responseType = "id_token";
+  const nonce = Math.random().toString(36).substring(2);
+
+  // Store nonce for verification
+  sessionStorage.setItem("google_oauth_nonce", nonce);
+
+  const params = new URLSearchParams({
+    client_id: clientId,
+    redirect_uri: redirectUri,
+    response_type: responseType,
+    scope: scope,
+    nonce: nonce,
+    prompt: "select_account",
+  });
+
+  return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
+}
+
+// Get Apple OAuth URL - initiates the OAuth flow
+// Apple requires response_mode=form_post for name/email scope,
+// so the callback goes to the backend which then redirects to frontend
+export function getAppleOAuthUrl(): string {
+  const clientId = import.meta.env.VITE_APPLE_CLIENT_ID;
+  const backendUrl = "https://eruditeaic.com";
+  const redirectUri = `${backendUrl}/api/auth/apple/callback`;
+  const scope = "name email";
+  const responseType = "code id_token";
+  const responseMode = "form_post";
+  const state = Math.random().toString(36).substring(2);
+  const nonce = Math.random().toString(36).substring(2);
+
+  // Store state and nonce for verification
+  sessionStorage.setItem("apple_oauth_state", state);
+  sessionStorage.setItem("apple_oauth_nonce", nonce);
+
+  const params = new URLSearchParams({
+    client_id: clientId,
+    redirect_uri: redirectUri,
+    response_type: responseType,
+    scope: scope,
+    response_mode: responseMode,
+    state: state,
+    nonce: nonce,
+  });
+
+  return `https://appleid.apple.com/auth/authorize?${params.toString()}`;
+}

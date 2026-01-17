@@ -42,6 +42,10 @@ export default function App() {
     login,
     signup,
     logout,
+    loginWithGoogle,
+    loginWithApple,
+    oauthError,
+    clearOAuthError,
   } = useAuth();
 
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -66,7 +70,7 @@ export default function App() {
   const abortRef = useRef<(() => void) | null>(null);
 
   const activeConversation = conversations.find(
-    (c) => c.id === activeConversationId,
+    (c) => c.id === activeConversationId
   );
   const messages = activeConversation?.messages || [];
 
@@ -88,7 +92,7 @@ export default function App() {
                 role: msg.role,
                 content: msg.content,
               })) || [],
-          }),
+          })
         );
         setConversations(formattedConversations);
       }
@@ -112,8 +116,8 @@ export default function App() {
                   content: msg.content,
                 })),
               }
-            : c,
-        ),
+            : c
+        )
       );
     }
   };
@@ -155,7 +159,7 @@ export default function App() {
       // Always load full conversation since the list API only returns partial messages
       await loadFullConversation(id);
     },
-    [],
+    []
   );
 
   const handleDeleteConversation = useCallback(
@@ -168,7 +172,7 @@ export default function App() {
         }
       }
     },
-    [activeConversationId],
+    [activeConversationId]
   );
 
   const handleNewChatInSpace = useCallback(
@@ -184,7 +188,7 @@ export default function App() {
       setIsSpacesView(false);
       setSidebarOpen(false);
     },
-    [],
+    []
   );
 
   // Voice chat lifecycle & mapping to messages
@@ -300,8 +304,8 @@ export default function App() {
           prev.map((c) =>
             c.id === currentConversationId
               ? { ...c, messages: [...c.messages, userMessage] }
-              : c,
-          ),
+              : c
+          )
         );
       }
 
@@ -350,7 +354,7 @@ export default function App() {
                   };
                 }
                 return c;
-              }),
+              })
             );
 
             setIsLoading(false);
@@ -370,20 +374,20 @@ export default function App() {
               prev.map((c) =>
                 c.id === currentConversationId
                   ? { ...c, messages: [...c.messages, errorMessage] }
-                  : c,
-              ),
+                  : c
+              )
             );
 
             setIsLoading(false);
             setStreamingContent("");
             abortRef.current = null;
           },
-        },
+        }
       );
 
       abortRef.current = abort;
     },
-    [activeConversationId, activeSpaceId],
+    [activeConversationId, activeSpaceId]
   );
 
   // Show loading state while checking auth
@@ -404,7 +408,15 @@ export default function App() {
   // Show auth page if not authenticated
   if (!isAuthenticated) {
     return (
-      <AuthPage onLogin={login} onSignup={signup} isLoading={authLoading} />
+      <AuthPage
+        onLogin={login}
+        onSignup={signup}
+        onGoogleLogin={loginWithGoogle}
+        onAppleLogin={loginWithApple}
+        isLoading={authLoading}
+        oauthError={oauthError}
+        onClearOAuthError={clearOAuthError}
+      />
     );
   }
 
