@@ -9,6 +9,7 @@ import {
   Brain,
   Search,
   ChevronDown,
+  Square,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -26,6 +27,8 @@ interface ChatInputProps {
   placeholder?: string;
   quotedText?: string;
   onClearQuote?: () => void;
+  isStreaming?: boolean;
+  onStopStream?: () => void;
 }
 
 export function ChatInput({
@@ -34,6 +37,8 @@ export function ChatInput({
   placeholder = "Message Erudite...",
   quotedText,
   onClearQuote,
+  isStreaming,
+  onStopStream,
 }: ChatInputProps) {
   const [value, setValue] = useState("");
   const [isFocused, setIsFocused] = useState(false);
@@ -337,26 +342,39 @@ export function ChatInput({
 
           {/* Right actions */}
           <div className="flex items-center mb-2">
-            {/* Send button */}
-            <button
-              onClick={handleSubmit}
-              disabled={!canSend}
-              className={cn(
-                "p-2 mr-2 rounded-xl transition-all duration-300 relative overflow-hidden group",
-                canSend
-                  ? "bg-emerald-600 hover:bg-emerald-500 text-white shadow-md active:scale-95"
-                  : "bg-[var(--color-surface-active)] text-[var(--color-text-dim)] cursor-not-allowed"
-              )}
-            >
-              <Send
-                size={22}
+            {/* Stop/Send button */}
+            {isStreaming ? (
+              <button
+                onClick={onStopStream}
                 className={cn(
-                  "relative z-10 transition-all",
-                  canSend &&
-                    "group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+                  "p-2 mr-2 rounded-xl transition-all duration-300 relative overflow-hidden group",
+                  "bg-[var(--color-surface-active)] hover:bg-red-500/20 text-[var(--color-text-secondary)] hover:text-red-400 active:scale-95"
                 )}
-              />
-            </button>
+                title="Stop generating"
+              >
+                <Square size={22} strokeWidth={2.5} className="relative z-10" />
+              </button>
+            ) : (
+              <button
+                onClick={handleSubmit}
+                disabled={!canSend}
+                className={cn(
+                  "p-2 mr-2 rounded-xl transition-all duration-300 relative overflow-hidden group",
+                  canSend
+                    ? "bg-emerald-600 hover:bg-emerald-500 text-white shadow-md active:scale-95"
+                    : "bg-[var(--color-surface-active)] text-[var(--color-text-dim)] cursor-not-allowed"
+                )}
+              >
+                <Send
+                  size={22}
+                  className={cn(
+                    "relative z-10 transition-all",
+                    canSend &&
+                      "group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+                  )}
+                />
+              </button>
+            )}
           </div>
         </div>
 

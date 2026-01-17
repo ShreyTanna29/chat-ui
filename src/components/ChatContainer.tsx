@@ -33,8 +33,11 @@ interface ChatContainerProps {
     message: string,
     image?: File,
     document?: File,
-    mode?: ChatMode,
+    mode?: ChatMode
   ) => void;
+  // Stream control
+  isStreaming?: boolean;
+  onStopStream?: () => void;
   // Voice chat props
   onToggleVoice?: () => void;
   isVoiceRecording?: boolean;
@@ -97,6 +100,8 @@ export function ChatContainer({
   spaceName,
   conversationTitle,
   onSend,
+  isStreaming,
+  onStopStream,
   onToggleVoice,
   isVoiceRecording,
   isVoiceConnecting,
@@ -121,7 +126,7 @@ export function ChatContainer({
     image?: File,
     document?: File,
     quoted?: string,
-    mode?: ChatMode,
+    mode?: ChatMode
   ) => {
     // If there's a quoted text, prepend it as context
     if (quoted) {
@@ -246,7 +251,7 @@ ${message}`
                   style={{ animationDelay: `${200 + index * 50}ms` }}
                   className={cn(
                     "group relative flex flex-col items-start gap-4 p-6 rounded-2xl text-left transition-all duration-500 animate-scale-in h-full overflow-hidden",
-                    "hover:scale-[1.02] hover:-translate-y-1 active:scale-[0.98]",
+                    "hover:scale-[1.02] hover:-translate-y-1 active:scale-[0.98]"
                   )}
                 >
                   {/* Glassmorphic background layer */}
@@ -258,7 +263,7 @@ ${message}`
                     style={{
                       background: `linear-gradient(135deg, ${suggestion.glowColor.replace(
                         "0.15",
-                        "0.3",
+                        "0.3"
                       )}, transparent 60%)`,
                       padding: "1px",
                       WebkitMask:
@@ -277,7 +282,7 @@ ${message}`
                     style={{
                       background: `radial-gradient(circle at 30% 30%, ${suggestion.glowColor.replace(
                         "0.15",
-                        "0.25",
+                        "0.25"
                       )}, transparent 60%)`,
                     }}
                   />
@@ -292,15 +297,15 @@ ${message}`
                           "bg-gradient-to-br from-white/10 to-white/5",
                           "border border-white/10",
                           "group-hover:scale-110 group-hover:rotate-3",
-                          "shadow-lg",
+                          "shadow-lg"
                         )}
                         style={{
                           boxShadow: `0 4px 16px ${suggestion.glowColor.replace(
                             "0.15",
-                            "0",
+                            "0"
                           )}, 0 0 0 0 ${suggestion.glowColor.replace(
                             "0.15",
-                            "0",
+                            "0"
                           )}`,
                           transition: "all 0.5s cubic-bezier(0.4, 0, 0.2, 1)",
                         }}
@@ -311,7 +316,7 @@ ${message}`
                           style={{
                             background: suggestion.glowColor.replace(
                               "0.15",
-                              "0.4",
+                              "0.4"
                             ),
                           }}
                         />
@@ -320,7 +325,7 @@ ${message}`
                           className={cn(
                             suggestion.iconColor,
                             "relative z-10 transition-all duration-500",
-                            "group-hover:drop-shadow-[0_0_8px_currentColor]",
+                            "group-hover:drop-shadow-[0_0_8px_currentColor]"
                           )}
                         />
                       </div>
@@ -332,7 +337,7 @@ ${message}`
                           suggestion.iconColor,
                           "opacity-0 scale-75 -translate-x-2 translate-y-2",
                           "transition-all duration-500",
-                          "group-hover:opacity-70 group-hover:scale-100 group-hover:translate-x-0 group-hover:translate-y-0",
+                          "group-hover:opacity-70 group-hover:scale-100 group-hover:translate-x-0 group-hover:translate-y-0"
                         )}
                       />
                     </div>
@@ -343,7 +348,7 @@ ${message}`
                         className={cn(
                           "font-semibold text-base text-[var(--color-text-primary)]",
                           "transition-all duration-500",
-                          "group-hover:translate-x-0.5",
+                          "group-hover:translate-x-0.5"
                         )}
                       >
                         {suggestion.title}
@@ -353,7 +358,7 @@ ${message}`
                           "text-[var(--color-text-secondary)] text-sm leading-relaxed",
                           "opacity-70 group-hover:opacity-100",
                           "transition-all duration-500",
-                          "group-hover:translate-x-0.5",
+                          "group-hover:translate-x-0.5"
                         )}
                       >
                         {suggestion.description}
@@ -366,7 +371,7 @@ ${message}`
                       style={{
                         background: `linear-gradient(90deg, ${suggestion.glowColor.replace(
                           "0.15",
-                          "0.6",
+                          "0.6"
                         )}, transparent)`,
                       }}
                     />
@@ -409,8 +414,8 @@ ${message}`
                 isVoiceRecording
                   ? "bg-red-500/10 border-red-500/40 text-red-300"
                   : isVoiceConnecting
-                    ? "bg-amber-500/10 border-amber-500/40 text-amber-300"
-                    : "bg-[var(--color-surface)] border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-emerald-500/40 hover:text-emerald-400",
+                  ? "bg-amber-500/10 border-amber-500/40 text-amber-300"
+                  : "bg-[var(--color-surface)] border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-emerald-500/40 hover:text-emerald-400"
               )}
             >
               {isVoiceConnecting ? (
@@ -422,8 +427,8 @@ ${message}`
                 {isVoiceRecording
                   ? "Stop voice chat"
                   : isVoiceConnecting
-                    ? "Connecting..."
-                    : "Voice chat"}
+                  ? "Connecting..."
+                  : "Voice chat"}
               </span>
             </button>
           </div>
@@ -441,8 +446,8 @@ ${message}`
                   isVoiceRecording
                     ? "bg-red-400"
                     : isVoiceConnecting
-                      ? "bg-amber-400"
-                      : "bg-emerald-400",
+                    ? "bg-amber-400"
+                    : "bg-emerald-400"
                 )}
               />
               <span className="text-xs text-[var(--color-text-secondary)] truncate">
@@ -450,8 +455,8 @@ ${message}`
                   (isVoiceRecording
                     ? "Listening..."
                     : isVoiceConnecting
-                      ? "Connecting to voice assistant..."
-                      : "Voice chat ready")}
+                    ? "Connecting to voice assistant..."
+                    : "Voice chat ready")}
               </span>
               <span className="ml-auto text-[10px] text-[var(--color-text-muted)]">
                 Tap voice chat again to stop
@@ -468,6 +473,8 @@ ${message}`
           disabled={isLoading}
           quotedText={quotedText || undefined}
           onClearQuote={() => setQuotedText(null)}
+          isStreaming={isStreaming}
+          onStopStream={onStopStream}
         />
       </div>
     </div>

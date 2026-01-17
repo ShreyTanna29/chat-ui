@@ -68,6 +68,35 @@ export default function App() {
   const [voiceTranscriptPreview, setVoiceTranscriptPreview] = useState("");
 
   const abortRef = useRef<(() => void) | null>(null);
+  const [isStreaming, setIsStreaming] = useState(false);
+
+  const handleStopStream = useCallback(() => {
+    if (abortRef.current) {
+      abortRef.current();
+      abortRef.current = null;
+    }
+
+    // Save partial response to conversation if there's any content
+    if (streamingContent.trim() && activeConversationId) {
+      const partialMessage: Message = {
+        id: generateId(),
+        role: "assistant",
+        content: streamingContent.trim() + "\n\n*(Response stopped)*",
+      };
+
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.id === activeConversationId
+            ? { ...c, messages: [...c.messages, partialMessage] }
+            : c
+        )
+      );
+    }
+
+    setIsStreaming(false);
+    setStreamingContent("");
+    setIsLoading(false);
+  }, [streamingContent, activeConversationId]);
 
   const activeConversation = conversations.find(
     (c) => c.id === activeConversationId
@@ -311,6 +340,7 @@ export default function App() {
 
       // Start streaming
       setIsLoading(true);
+      setIsStreaming(true);
       setStreamingContent("");
 
       // For new conversations, don't send conversationId - let server create one
@@ -358,6 +388,7 @@ export default function App() {
             );
 
             setIsLoading(false);
+            setIsStreaming(false);
             setStreamingContent("");
             abortRef.current = null;
           },
@@ -379,6 +410,7 @@ export default function App() {
             );
 
             setIsLoading(false);
+            setIsStreaming(false);
             setStreamingContent("");
             abortRef.current = null;
           },
@@ -451,6 +483,8 @@ export default function App() {
             spaceName={activeSpaceName ?? undefined}
             conversationTitle={activeConversation?.title}
             onSend={handleSend}
+            isStreaming={isStreaming}
+            onStopStream={handleStopStream}
             onToggleVoice={handleToggleVoice}
             isVoiceRecording={isVoiceRecording}
             isVoiceConnecting={isVoiceConnecting}
