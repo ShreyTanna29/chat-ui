@@ -13,7 +13,6 @@ import {
   logout as apiLogout,
   getProfile,
   googleLogin as apiGoogleLogin,
-  appleLogin as apiAppleLogin,
   getGoogleOAuthUrl,
   getAppleOAuthUrl,
 } from "@/services/auth";
