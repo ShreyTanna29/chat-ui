@@ -3,6 +3,8 @@ import { apiRawFetch, apiFormDataFetch } from "./api";
 export interface StreamChatOptions {
   prompt: string;
   conversationId?: string;
+  /** Optional space to associate this conversation with */
+  spaceId?: string;
   model?: string;
   temperature?: number;
   maxTokens?: number;
@@ -36,6 +38,9 @@ export async function streamChat(
       if (options.conversationId) {
         formData.append("conversationId", options.conversationId);
       }
+      if (options.spaceId) {
+        formData.append("spaceId", options.spaceId);
+      }
       formData.append("model", options.model || "gpt-4.1-mini");
       formData.append("temperature", String(options.temperature || 0.7));
       formData.append("maxTokens", String(options.maxTokens || 2000));
@@ -62,6 +67,7 @@ export async function streamChat(
       const bodyData: Record<string, unknown> = {
         prompt: options.prompt,
         conversationId: options.conversationId,
+        spaceId: options.spaceId,
         model: options.model || "gpt-4.1-mini",
         temperature: options.temperature || 0.7,
         maxTokens: options.maxTokens || 2000,

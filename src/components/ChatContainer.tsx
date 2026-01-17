@@ -1,5 +1,13 @@
 import { useRef, useEffect, useState } from "react";
-import { Code, Lightbulb, BookOpen, Zap, ArrowUpRight } from "lucide-react";
+import {
+  Code,
+  Lightbulb,
+  BookOpen,
+  Zap,
+  ArrowUpRight,
+  Folder,
+  MessageSquare,
+} from "lucide-react";
 import { ChatMessage } from "./ChatMessage";
 import { ChatInput, ChatMode } from "./ChatInput";
 import { cn } from "@/lib/utils";
@@ -14,6 +22,10 @@ interface ChatContainerProps {
   messages: Message[];
   isLoading: boolean;
   streamingContent?: string;
+  /** Optional space name if this chat is associated with a space */
+  spaceName?: string;
+  /** Optional conversation title for context */
+  conversationTitle?: string;
   onSend: (
     message: string,
     image?: File,
@@ -73,6 +85,8 @@ export function ChatContainer({
   messages,
   isLoading,
   streamingContent = "",
+  spaceName,
+  conversationTitle,
   onSend,
 }: ChatContainerProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -115,6 +129,39 @@ ${message}`
     <div className="flex w-full flex-col justify-center items-center h-full bg-background relative overflow-hidden">
       {/* Ambient background glow */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[800px] bg-emerald-500/15 rounded-full blur-3xl pointer-events-none opacity-50" />
+
+      {/* Context header: show space and conversation info if available */}
+      {(spaceName || conversationTitle) && (
+        <div className="relative z-10 w-full max-w-3xl mx-auto px-4 pt-4">
+          <div className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-2xl bg-[var(--color-surface)]/90 border border-[var(--color-border)] shadow-md">
+            <div className="flex items-center gap-2 overflow-hidden">
+              {spaceName && (
+                <div className="flex items-center gap-1.5 text-xs text-[var(--color-text-secondary)] max-w-[180px] sm:max-w-[220px] truncate">
+                  <Folder
+                    size={14}
+                    className="text-emerald-400 flex-shrink-0"
+                  />
+                  <span className="truncate">{spaceName}</span>
+                </div>
+              )}
+              {spaceName && conversationTitle && (
+                <span className="text-[var(--color-text-muted)] text-xs px-1">
+                  •
+                </span>
+              )}
+              {conversationTitle && (
+                <div className="flex items-center gap-1.5 text-xs text-[var(--color-text-secondary)] max-w-[200px] sm:max-w-[260px] truncate">
+                  <MessageSquare
+                    size={14}
+                    className="text-[var(--color-text-muted)] flex-shrink-0"
+                  />
+                  <span className="truncate">{conversationTitle}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Messages area */}
       <div

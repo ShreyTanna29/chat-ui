@@ -8,6 +8,7 @@ import {
   Trash2,
   Crown,
   LogOut,
+  Folder,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -27,6 +28,10 @@ interface SidebarProps {
   userName?: string;
   isOpen: boolean;
   onToggle: () => void;
+  // Spaces
+  isSpacesView?: boolean;
+  onShowSpaces?: () => void;
+  onShowChat?: () => void;
 }
 
 export function Sidebar({
@@ -39,6 +44,9 @@ export function Sidebar({
   userName = "User",
   isOpen,
   onToggle,
+  isSpacesView,
+  onShowSpaces,
+  onShowChat,
 }: SidebarProps) {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
 
@@ -105,6 +113,36 @@ export function Sidebar({
             />
             <span>New chat</span>
           </button>
+
+          {/* View toggle: Chat vs Spaces */}
+          <div className="mt-4 flex items-center gap-1.5 p-1 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)]">
+            <button
+              type="button"
+              onClick={onShowChat}
+              className={cn(
+                "flex-1 inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium",
+                !isSpacesView
+                  ? "bg-[var(--color-surface-active)] text-[var(--color-text-primary)] shadow-sm"
+                  : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)]"
+              )}
+            >
+              <MessageSquare size={14} />
+              <span>Chat</span>
+            </button>
+            <button
+              type="button"
+              onClick={onShowSpaces}
+              className={cn(
+                "flex-1 inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium",
+                isSpacesView
+                  ? "bg-[var(--color-surface-active)] text-[var(--color-text-primary)] shadow-sm"
+                  : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)]"
+              )}
+            >
+              <Folder size={14} />
+              <span>Spaces</span>
+            </button>
+          </div>
         </div>
 
         {/* Divider */}

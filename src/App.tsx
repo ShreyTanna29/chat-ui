@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { Sidebar } from "@/components/Sidebar";
 import { ChatContainer } from "@/components/ChatContainer";
 import { AuthPage } from "@/components/AuthPage";
+import { SpacesSection } from "@/components/SpacesSection";
 import { ChatMode } from "@/components/ChatInput";
 import { useAuth } from "@/contexts/AuthContext";
 import { streamChat } from "@/services/chat";
@@ -46,6 +47,9 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [streamingContent, setStreamingContent] = useState("");
+  const [isSpacesView, setIsSpacesView] = useState(false);
+  const [activeSpaceId, setActiveSpaceId] = useState<string | null>(null);
+  const [activeSpaceName, setActiveSpaceName] = useState<string | null>(null);
 
   const abortRef = useRef<(() => void) | null>(null);
 
@@ -110,17 +114,30 @@ export default function App() {
     }
     setStreamingContent("");
     setActiveConversationId(null);
+    setActiveSpaceId(null);
+    setActiveSpaceName(null);
+    setIsSpacesView(false);
     setSidebarOpen(false);
   }, []);
 
-  const handleSelectConversation = useCallback(async (id: string) => {
-    // Cancel any ongoing stream
-    if (abortRef.current) {
-      abortRef.current();
-      abortRef.current = null;
-    }
-    setStreamingContent("");
-    setActiveConversationId(id);
+  const handleSelectConversation = useCallback(
+    async (id: string, spaceId?: string, spaceName?: string) => {
+      // Cancel any ongoing stream
+      if (abortRef.current) {
+        abortRef.current();
+        abortRef.current = null;
+      }
+      setStreamingContent("");
+      setActiveConversationId(id);
+
+      if (spaceId) {
+        setActiveSpaceId(spaceId);
+        setActiveSpaceName(spaceName ?? null);
+      } else {
+        setActiveSpaceId(null);
+        setActiveSpaceName(null);
+      }
+      setIsSpacesView(false);
     setSidebarOpen(false);
 
     // Always load full conversation since the list API only returns partial messages
@@ -138,6 +155,22 @@ export default function App() {
       }
     },
     [activeConversationId]
+  );
+
+  const handleNewChatInSpace = useCallback(
+    (spaceId: string, spaceName: string) => {
+      if (abortRef.current) {
+        abortRef.current();
+        abortRef.current = null;
+      }
+      setStreamingContent("");
+      setActiveConversationId(null);
+      setActiveSpaceId(spaceId);
+      setActiveSpaceName(spaceName);
+      setIsSpacesView(false);
+      setSidebarOpen(false);
+    },
+    []
   );
 
   const handleSend = useCallback(
@@ -184,6 +217,8 @@ export default function App() {
         {
           prompt: content,
           conversationId: isNewConversation ? undefined : currentConversationId,
+          // Only send spaceId when creating a new conversation from within a space
+          spaceId: isNewConversation ? activeSpaceId || undefined : undefined,
           image,
           document,
           // Only send thinkMode if "think" is selected, researchMode if "research" is selected
@@ -250,7 +285,7 @@ export default function App() {
 
       abortRef.current = abort;
     },
-    [activeConversationId]
+    [activeConversationId, activeSpaceId]
   );
 
   // Show loading state while checking auth
@@ -287,14 +322,27 @@ export default function App() {
         userName={user?.name || "User"}
         isOpen={sidebarOpen}
         onToggle={() => setSidebarOpen(!sidebarOpen)}
+        isSpacesView={isSpacesView}
+        onShowSpaces={() => setIsSpacesView(true)}
+        onShowChat={() => setIsSpacesView(false)}
       />
       <main className="main-content">
-        <ChatContainer
-          messages={messages}
-          isLoading={isLoading}
-          streamingContent={streamingContent}
-          onSend={handleSend}
-        />
+        {isSpacesView ? (
+          <SpacesSection
+            onOpenConversation={handleSelectConversation}
+            onStartNewChatInSpace={handleNewChatInSpace}
+            onBackToChat={() => setIsSpacesView(false)}
+          />
+        ) : (
+          <ChatContainer
+            messages={messages}
+            isLoading={isLoading}
+            streamingContent={streamingContent}
+            spaceName={activeSpaceName ?? undefined}
+            conversationTitle={activeConversation?.title}
+            onSend={handleSend}
+          />
+        )}
       </main>
     </div>
   );
