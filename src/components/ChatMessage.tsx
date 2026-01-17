@@ -13,6 +13,64 @@ import remarkGfm from "remark-gfm";
 import { useState, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 
+// Code block component with copy button
+function CodeBlock({
+  children,
+  language,
+}: {
+  children?: React.ReactNode;
+  language?: string;
+}) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    const code = String(children).replace(/\n$/, "");
+    await navigator.clipboard.writeText(code);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="relative my-4 rounded-xl overflow-hidden bg-[#0d1117] border border-[var(--color-border)]">
+      {/* Header with language and copy button */}
+      <div className="flex items-center justify-between px-4 py-2.5 bg-[#161b22] border-b border-[var(--color-border)]">
+        <span className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider">
+          {language || "code"}
+        </span>
+        <button
+          onClick={handleCopy}
+          className={cn(
+            "flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all",
+            "border border-transparent",
+            copied
+              ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/30"
+              : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface)]"
+          )}
+          title="Copy code"
+        >
+          {copied ? (
+            <>
+              <Check size={14} />
+              <span>Copied!</span>
+            </>
+          ) : (
+            <>
+              <Copy size={14} />
+              <span>Copy</span>
+            </>
+          )}
+        </button>
+      </div>
+      {/* Code content */}
+      <div className="p-4 overflow-x-auto">
+        <code className="text-sm font-mono text-[#e6edf3] leading-relaxed whitespace-pre">
+          {children}
+        </code>
+      </div>
+    </div>
+  );
+}
+
 interface ChatMessageProps {
   role: "user" | "assistant";
   content: string;
@@ -210,8 +268,8 @@ export function ChatMessage({
                   "prose-headings:text-[var(--color-text-primary)] prose-headings:font-semibold prose-headings:mb-4 prose-headings:mt-6 first:prose-headings:mt-0",
                   "prose-strong:text-[var(--color-text-primary)] prose-strong:font-semibold",
                   "prose-a:text-emerald-400 prose-a:no-underline hover:prose-a:underline",
-                  "prose-code:text-[var(--color-text-primary)] prose-code:bg-[var(--color-surface)] prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-md prose-code:before:content-none prose-code:after:content-none prose-code:font-mono prose-code:text-[0.9em]",
-                  "prose-pre:bg-[var(--color-surface)] prose-pre:border prose-pre:border-[var(--color-border)] prose-pre:rounded-xl prose-pre:p-4",
+                  "prose-code:before:content-none prose-code:after:content-none",
+                  "prose-pre:bg-transparent prose-pre:p-0 prose-pre:m-0 prose-pre:border-0",
                   "prose-ul:my-4 prose-ul:list-disc prose-ul:pl-6",
                   "prose-ol:my-4 prose-ol:list-decimal prose-ol:pl-6",
                   "prose-li:my-1",
@@ -229,6 +287,35 @@ export function ChatMessage({
                     a: (props) => (
                       <a {...props} target="_blank" rel="noopener noreferrer" />
                     ),
+                    pre: ({ children }) => {
+                      // Extract the code element from pre children
+                      return <>{children}</>;
+                    },
+                    code: ({ node, className, children, ...props }) => {
+                      // Check if this code is inside a pre tag (code block) by checking the parent
+                      const isCodeBlock =
+                        node?.position && className?.startsWith("language-");
+                      // Also check if it's a multi-line code without language
+                      const content = String(children);
+                      const hasNewlines = content.includes("\n");
+
+                      if (isCodeBlock || hasNewlines) {
+                        const language =
+                          className?.replace("language-", "") || "";
+                        return (
+                          <CodeBlock language={language}>{children}</CodeBlock>
+                        );
+                      }
+                      // Inline code
+                      return (
+                        <code
+                          className="px-1.5 py-0.5 rounded-md bg-[var(--color-surface)] text-[var(--color-text-primary)] font-mono text-[0.9em]"
+                          {...props}
+                        >
+                          {children}
+                        </code>
+                      );
+                    },
                   }}
                 >
                   {content}
