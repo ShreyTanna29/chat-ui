@@ -30,6 +30,7 @@ export class VoiceChatRealtimeClient {
   private options: VoiceChatOptions;
   private assistantTranscript = "";
   private nextStartTime = 0;
+  private activeSources: AudioBufferSourceNode[] = [];
 
   constructor(options: VoiceChatOptions = {}) {
     this.options = options;
@@ -140,50 +141,98 @@ export class VoiceChatRealtimeClient {
 
       this.isRecording = true;
     } catch (error: unknown) {
-      const err = error as { name?: string } | null;
-      if (err?.name === "NotAllowedError") {
+      console.error("Failed to start recording:", error);
+      const err = error as { name?: string; message?: string } | null;
+
+      if (
+        err?.name === "NotAllowedError" ||
+        err?.name === "PermissionDeniedError"
+      ) {
         this.emit({
           type: "error",
-          message: "Please allow microphone access to use voice chat",
+          message: "Microphone permission denied. Please allow access.",
+        });
+      } else if (
+        err?.name === "NotFoundError" ||
+        err?.name === "DevicesNotFoundError"
+      ) {
+        this.emit({
+          type: "error",
+          message: "No microphone found.",
+        });
+      } else if (
+        err?.name === "NotReadableError" ||
+        err?.name === "TrackStartError"
+      ) {
+        this.emit({
+          type: "error",
+          message: "Microphone is busy or inaccessible.",
         });
       } else {
         this.emit({
           type: "error",
-          message: "Unable to start microphone",
+          message: `Microphone error: ${err?.message || "Unknown error"}`,
         });
       }
+
+      // Ensure cleanup if start failed
+      this.cleanupAudio();
+      this.isRecording = false;
     }
   }
 
-  stopRecording() {
+  stopRecording(requestResponse = true) {
     if (!this.isRecording) return;
 
     this.isRecording = false;
 
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      // Commit the current buffer and ask for a response
+      // Commit the current buffer
       this.ws.send(
         JSON.stringify({
           type: "input_audio_buffer.commit",
         }),
       );
-      this.ws.send(
-        JSON.stringify({
-          type: "response.create",
-        }),
-      );
+
+      // Only request a response if explicitly asked (e.g. manual stop, not disconnect)
+      if (requestResponse) {
+        this.ws.send(
+          JSON.stringify({
+            type: "response.create",
+          }),
+        );
+      }
     }
 
     this.cleanupAudio();
   }
 
   disconnect() {
-    this.stopRecording();
-    if (this.ws) {
-      this.ws.close();
-      this.ws = null;
+    try {
+      // Don't request a response when disconnecting
+      this.stopRecording(false);
+      if (this.ws) {
+        this.ws.close();
+        this.ws = null;
+      }
+    } catch (e) {
+      console.warn("Error during disconnect:", e);
+    } finally {
+      this.assistantTranscript = "";
+      this.clearAudioQueue();
+      this.cleanupAudio();
     }
-    this.assistantTranscript = "";
+  }
+
+  private clearAudioQueue() {
+    this.activeSources.forEach((source) => {
+      try {
+        source.stop();
+      } catch (e) {
+        // Ignore errors if source already stopped
+      }
+    });
+    this.activeSources = [];
     this.nextStartTime = 0;
   }
 
@@ -237,7 +286,12 @@ export class VoiceChatRealtimeClient {
         case "input_audio_buffer.speech_started":
           this.emit({ type: "user.speech_started" });
           // Clear any pending audio playback when user starts speaking to avoid overlap
-          this.nextStartTime = 0;
+          this.clearAudioQueue();
+
+          // Optionally cancel the current response on the server if supported
+          if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+            this.ws.send(JSON.stringify({ type: "response.cancel" }));
+          }
           break;
         case "input_audio_buffer.speech_stopped":
           this.emit({ type: "user.speech_stopped" });
@@ -311,6 +365,12 @@ export class VoiceChatRealtimeClient {
 
     // Update next start time
     this.nextStartTime = startTime + buffer.duration;
+
+    // Track active source
+    source.onended = () => {
+      this.activeSources = this.activeSources.filter((s) => s !== source);
+    };
+    this.activeSources.push(source);
   }
 
   private float32ToPCM16(float32Array: Float32Array): Int16Array {

@@ -40,6 +40,7 @@ interface ChatContainerProps {
   isVoiceRecording?: boolean;
   isVoiceConnecting?: boolean;
   voiceStatus?: string;
+  isVoiceSessionActive?: boolean;
 }
 
 const suggestions = [
@@ -100,6 +101,7 @@ export function ChatContainer({
   isVoiceRecording,
   isVoiceConnecting,
   voiceStatus,
+  isVoiceSessionActive,
 }: ChatContainerProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [quotedText, setQuotedText] = useState<string | null>(null);
@@ -136,7 +138,10 @@ ${message}`
   };
 
   const isEmpty = messages.length === 0;
-  const isVoiceActive = isVoiceRecording || isVoiceConnecting || voiceStatus;
+  // Use explicit session active state if available, otherwise fallback to status checks
+  const isVoiceActive =
+    isVoiceSessionActive ??
+    (isVoiceRecording || isVoiceConnecting || !!voiceStatus);
 
   if (isVoiceActive && onToggleVoice) {
     return (

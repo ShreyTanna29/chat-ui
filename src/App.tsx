@@ -11,7 +11,10 @@ import {
   getConversation,
   deleteConversation as apiDeleteConversation,
 } from "@/services/conversations";
-import { VoiceChatRealtimeClient, VoiceChatEvent } from "@/services/voiceChatRealtime";
+import {
+  VoiceChatRealtimeClient,
+  VoiceChatEvent,
+} from "@/services/voiceChatRealtime";
 import "./App.css";
 
 interface Message {
@@ -54,6 +57,7 @@ export default function App() {
 
   // Voice chat state
   const voiceClientRef = useRef<VoiceChatRealtimeClient | null>(null);
+  const [isVoiceSessionActive, setIsVoiceSessionActive] = useState(false);
   const [isVoiceRecording, setIsVoiceRecording] = useState(false);
   const [isVoiceConnecting, setIsVoiceConnecting] = useState(false);
   const [voiceStatus, setVoiceStatus] = useState<string | null>(null);
@@ -62,7 +66,7 @@ export default function App() {
   const abortRef = useRef<(() => void) | null>(null);
 
   const activeConversation = conversations.find(
-    (c) => c.id === activeConversationId
+    (c) => c.id === activeConversationId,
   );
   const messages = activeConversation?.messages || [];
 
@@ -84,7 +88,7 @@ export default function App() {
                 role: msg.role,
                 content: msg.content,
               })) || [],
-          })
+          }),
         );
         setConversations(formattedConversations);
       }
@@ -108,8 +112,8 @@ export default function App() {
                   content: msg.content,
                 })),
               }
-            : c
-        )
+            : c,
+        ),
       );
     }
   };
@@ -146,11 +150,13 @@ export default function App() {
         setActiveSpaceName(null);
       }
       setIsSpacesView(false);
-    setSidebarOpen(false);
+      setSidebarOpen(false);
 
-    // Always load full conversation since the list API only returns partial messages
-    await loadFullConversation(id);
-  }, []);
+      // Always load full conversation since the list API only returns partial messages
+      await loadFullConversation(id);
+    },
+    [],
+  );
 
   const handleDeleteConversation = useCallback(
     async (id: string) => {
@@ -162,7 +168,7 @@ export default function App() {
         }
       }
     },
-    [activeConversationId]
+    [activeConversationId],
   );
 
   const handleNewChatInSpace = useCallback(
@@ -178,7 +184,7 @@ export default function App() {
       setIsSpacesView(false);
       setSidebarOpen(false);
     },
-    []
+    [],
   );
 
   // Voice chat lifecycle & mapping to messages
@@ -218,8 +224,8 @@ export default function App() {
                   prev.map((c) =>
                     c.id === currentId
                       ? { ...c, messages: [...c.messages, assistantMessage] }
-                      : c
-                  )
+                      : c,
+                  ),
                 );
               } else {
                 // If no active conversation yet, create one for this voice reply
@@ -236,7 +242,7 @@ export default function App() {
               }
 
               setVoiceTranscriptPreview("");
-              setVoiceStatus(null);
+              setVoiceStatus("Voice chat ready");
               setIsVoiceRecording(false);
               setIsVoiceConnecting(false);
               setIsLoading(false);
@@ -247,6 +253,7 @@ export default function App() {
               setIsVoiceRecording(false);
               setIsVoiceConnecting(false);
               setIsLoading(false);
+              // Don't close the session on error immediately, let user see the error
               break;
             default:
               break;
@@ -258,18 +265,27 @@ export default function App() {
   }, [activeConversationId]);
 
   const handleToggleVoice = useCallback(async () => {
-    const client = ensureVoiceClient();
-    if (!client) return;
-
-    if (client.recording) {
-      client.stopRecording();
+    // If session is active, this button acts as "End Call"
+    if (isVoiceSessionActive) {
+      const client = voiceClientRef.current;
+      if (client) {
+        client.disconnect();
+      }
+      setIsVoiceSessionActive(false);
       setIsVoiceRecording(false);
-      setVoiceStatus("Processing...");
+      setIsVoiceConnecting(false);
+      setVoiceStatus(null);
       return;
     }
 
-    setIsVoiceConnecting(!client.connected);
+    // Start new session
+    const client = ensureVoiceClient();
+    if (!client) return;
+
+    setIsVoiceSessionActive(true);
+    setIsVoiceConnecting(true);
     setVoiceStatus("Connecting...");
+
     try {
       await client.startRecording();
       setIsVoiceRecording(true);
@@ -278,8 +294,9 @@ export default function App() {
       // Errors are surfaced via onEvent
       setIsVoiceRecording(false);
       setIsVoiceConnecting(false);
+      // Keep session active to show error
     }
-  }, [ensureVoiceClient]);
+  }, [ensureVoiceClient, isVoiceSessionActive]);
 
   const handleSend = useCallback(
     async (content: string, image?: File, document?: File, mode?: ChatMode) => {
@@ -310,8 +327,8 @@ export default function App() {
           prev.map((c) =>
             c.id === currentConversationId
               ? { ...c, messages: [...c.messages, userMessage] }
-              : c
-          )
+              : c,
+          ),
         );
       }
 
@@ -360,7 +377,7 @@ export default function App() {
                   };
                 }
                 return c;
-              })
+              }),
             );
 
             setIsLoading(false);
@@ -380,20 +397,20 @@ export default function App() {
               prev.map((c) =>
                 c.id === currentConversationId
                   ? { ...c, messages: [...c.messages, errorMessage] }
-                  : c
-              )
+                  : c,
+              ),
             );
 
             setIsLoading(false);
             setStreamingContent("");
             abortRef.current = null;
           },
-        }
+        },
       );
 
       abortRef.current = abort;
     },
-    [activeConversationId, activeSpaceId]
+    [activeConversationId, activeSpaceId],
   );
 
   // Show loading state while checking auth
@@ -453,6 +470,7 @@ export default function App() {
             isVoiceRecording={isVoiceRecording}
             isVoiceConnecting={isVoiceConnecting}
             voiceStatus={voiceStatus ?? undefined}
+            isVoiceSessionActive={isVoiceSessionActive}
           />
         )}
       </main>

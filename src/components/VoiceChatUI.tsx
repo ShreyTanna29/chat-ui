@@ -42,7 +42,11 @@ export function VoiceChatUI({
             <div
               className={cn(
                 "w-2 h-2 rounded-full animate-pulse",
-                isVoiceConnecting ? "bg-amber-400" : "bg-emerald-400",
+                isVoiceConnecting
+                  ? "bg-amber-400"
+                  : voiceStatus?.toLowerCase().includes("error")
+                    ? "bg-red-400"
+                    : "bg-emerald-400",
               )}
             />
             <span className="text-sm font-medium text-[var(--color-text-secondary)]">
