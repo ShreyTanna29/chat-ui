@@ -171,7 +171,7 @@ export async function streamChat(
                     callbacks.onDone(fullResponse, conversationId);
                     return;
                 }
-              } catch (parseError) {
+              } catch {
                 // Skip malformed JSON
                 console.warn("Failed to parse SSE data:", dataStr);
               }

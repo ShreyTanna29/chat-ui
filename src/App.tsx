@@ -11,6 +11,7 @@ import {
   getConversation,
   deleteConversation as apiDeleteConversation,
 } from "@/services/conversations";
+import { VoiceChatRealtimeClient, VoiceChatEvent } from "@/services/voiceChatRealtime";
 import "./App.css";
 
 interface Message {
@@ -50,6 +51,13 @@ export default function App() {
   const [isSpacesView, setIsSpacesView] = useState(false);
   const [activeSpaceId, setActiveSpaceId] = useState<string | null>(null);
   const [activeSpaceName, setActiveSpaceName] = useState<string | null>(null);
+
+  // Voice chat state
+  const voiceClientRef = useRef<VoiceChatRealtimeClient | null>(null);
+  const [isVoiceRecording, setIsVoiceRecording] = useState(false);
+  const [isVoiceConnecting, setIsVoiceConnecting] = useState(false);
+  const [voiceStatus, setVoiceStatus] = useState<string | null>(null);
+  const [voiceTranscriptPreview, setVoiceTranscriptPreview] = useState("");
 
   const abortRef = useRef<(() => void) | null>(null);
 
@@ -172,6 +180,106 @@ export default function App() {
     },
     []
   );
+
+  // Voice chat lifecycle & mapping to messages
+  const ensureVoiceClient = useCallback(() => {
+    if (!voiceClientRef.current) {
+      voiceClientRef.current = new VoiceChatRealtimeClient({
+        onEvent: (event: VoiceChatEvent) => {
+          switch (event.type) {
+            case "session.created":
+              setVoiceStatus("Connected to voice assistant");
+              break;
+            case "user.speech_started":
+              setVoiceStatus("Listening...");
+              setIsLoading(true);
+              setVoiceTranscriptPreview("");
+              break;
+            case "user.speech_stopped":
+              setVoiceStatus("Thinking...");
+              break;
+            case "assistant.transcript_delta":
+              setVoiceTranscriptPreview((prev) => prev + event.delta);
+              break;
+            case "assistant.transcript_complete": {
+              const transcript = event.transcript.trim();
+              if (!transcript) break;
+
+              // Map voice exchange into current conversation as a single assistant message
+              const assistantMessage: Message = {
+                id: generateId(),
+                role: "assistant",
+                content: transcript,
+              };
+
+              const currentId = activeConversationId;
+              if (currentId) {
+                setConversations((prev) =>
+                  prev.map((c) =>
+                    c.id === currentId
+                      ? { ...c, messages: [...c.messages, assistantMessage] }
+                      : c
+                  )
+                );
+              } else {
+                // If no active conversation yet, create one for this voice reply
+                const newConversation: Conversation = {
+                  id: generateId(),
+                  title:
+                    transcript.slice(0, 30) +
+                    (transcript.length > 30 ? "..." : ""),
+                  date: new Date().toISOString(),
+                  messages: [assistantMessage],
+                };
+                setConversations((prev) => [newConversation, ...prev]);
+                setActiveConversationId(newConversation.id);
+              }
+
+              setVoiceTranscriptPreview("");
+              setVoiceStatus(null);
+              setIsVoiceRecording(false);
+              setIsVoiceConnecting(false);
+              setIsLoading(false);
+              break;
+            }
+            case "error":
+              setVoiceStatus(event.message);
+              setIsVoiceRecording(false);
+              setIsVoiceConnecting(false);
+              setIsLoading(false);
+              break;
+            default:
+              break;
+          }
+        },
+      });
+    }
+    return voiceClientRef.current;
+  }, [activeConversationId]);
+
+  const handleToggleVoice = useCallback(async () => {
+    const client = ensureVoiceClient();
+    if (!client) return;
+
+    if (client.recording) {
+      client.stopRecording();
+      setIsVoiceRecording(false);
+      setVoiceStatus("Processing...");
+      return;
+    }
+
+    setIsVoiceConnecting(!client.connected);
+    setVoiceStatus("Connecting...");
+    try {
+      await client.startRecording();
+      setIsVoiceRecording(true);
+      setIsVoiceConnecting(false);
+    } catch {
+      // Errors are surfaced via onEvent
+      setIsVoiceRecording(false);
+      setIsVoiceConnecting(false);
+    }
+  }, [ensureVoiceClient]);
 
   const handleSend = useCallback(
     async (content: string, image?: File, document?: File, mode?: ChatMode) => {
@@ -337,10 +445,14 @@ export default function App() {
           <ChatContainer
             messages={messages}
             isLoading={isLoading}
-            streamingContent={streamingContent}
+            streamingContent={streamingContent || voiceTranscriptPreview}
             spaceName={activeSpaceName ?? undefined}
             conversationTitle={activeConversation?.title}
             onSend={handleSend}
+            onToggleVoice={handleToggleVoice}
+            isVoiceRecording={isVoiceRecording}
+            isVoiceConnecting={isVoiceConnecting}
+            voiceStatus={voiceStatus ?? undefined}
           />
         )}
       </main>

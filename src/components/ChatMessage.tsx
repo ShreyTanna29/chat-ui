@@ -226,7 +226,7 @@ export function ChatMessage({
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
                   components={{
-                    a: ({ node, ...props }: any) => (
+                    a: (props) => (
                       <a {...props} target="_blank" rel="noopener noreferrer" />
                     ),
                   }}

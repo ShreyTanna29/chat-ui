@@ -7,6 +7,8 @@ import {
   ArrowUpRight,
   Folder,
   MessageSquare,
+  AudioLines,
+  Loader2,
 } from "lucide-react";
 import { ChatMessage } from "./ChatMessage";
 import { ChatInput, ChatMode } from "./ChatInput";
@@ -32,6 +34,11 @@ interface ChatContainerProps {
     document?: File,
     mode?: ChatMode
   ) => void;
+  // Voice chat props
+  onToggleVoice?: () => void;
+  isVoiceRecording?: boolean;
+  isVoiceConnecting?: boolean;
+  voiceStatus?: string;
 }
 
 const suggestions = [
@@ -88,6 +95,10 @@ export function ChatContainer({
   spaceName,
   conversationTitle,
   onSend,
+  onToggleVoice,
+  isVoiceRecording,
+  isVoiceConnecting,
+  voiceStatus,
 }: ChatContainerProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [quotedText, setQuotedText] = useState<string | null>(null);
@@ -368,6 +379,69 @@ ${message}`
           </div>
         )}
       </div>
+
+      {/* Voice chat control (outside input bar) */}
+      {onToggleVoice && (
+        <div className="w-full flex justify-center mb-1">
+          <div className="w-full max-w-3xl mx-auto flex items-center justify-end px-4 gap-2">
+            <button
+              type="button"
+              onClick={onToggleVoice}
+              className={cn(
+                "inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border transition-all shadow-sm",
+                isVoiceRecording
+                  ? "bg-red-500/10 border-red-500/40 text-red-300"
+                  : isVoiceConnecting
+                  ? "bg-amber-500/10 border-amber-500/40 text-amber-300"
+                  : "bg-[var(--color-surface)] border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-emerald-500/40 hover:text-emerald-400"
+              )}
+            >
+              {isVoiceConnecting ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : (
+                <AudioLines size={14} className="text-emerald-400" />
+              )}
+              <span>
+                {isVoiceRecording
+                  ? "Stop voice chat"
+                  : isVoiceConnecting
+                  ? "Connecting..."
+                  : "Voice chat"}
+              </span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Minimal voice chat status panel */}
+      {(isVoiceRecording || isVoiceConnecting || voiceStatus) && (
+        <div className="w-full flex justify-center mb-2">
+          <div className="w-full max-w-3xl mx-auto px-4">
+            <div className="flex items-center gap-2 px-3 py-2 rounded-2xl bg-[var(--color-surface)]/90 border border-[var(--color-border)] shadow-sm">
+              <div
+                className={cn(
+                  "w-1.5 h-1.5 rounded-full",
+                  isVoiceRecording
+                    ? "bg-red-400"
+                    : isVoiceConnecting
+                    ? "bg-amber-400"
+                    : "bg-emerald-400"
+                )}
+              />
+              <span className="text-xs text-[var(--color-text-secondary)] truncate">
+                {voiceStatus || (isVoiceRecording
+                  ? "Listening..."
+                  : isVoiceConnecting
+                  ? "Connecting to voice assistant..."
+                  : "Voice chat ready")}
+              </span>
+              <span className="ml-auto text-[10px] text-[var(--color-text-muted)]">
+                Tap voice chat again to stop
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Input area with enhanced gradient separator */}
       <div className="w-full flex justify-center mx-auto">

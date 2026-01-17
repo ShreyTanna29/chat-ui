@@ -381,8 +381,6 @@ export function ChatInput({
 
       {/* Footer text */}
       <div className="mt-4 flex items-center justify-center gap-1.5 text-xs text-[var(--color-text-dim)] font-medium">
-        {" "}
-        {/* Increased margin top */}
         <span>Erudite can make mistakes. Check important info.</span>
       </div>
     </div>
