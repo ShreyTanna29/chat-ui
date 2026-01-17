@@ -74,7 +74,7 @@ export function VoiceChatUI({
                 <img
                   src="/logo.jpg"
                   alt="Erudite"
-                  className="w-full h-full object-cover opacity-80 mix-blend-overlay"
+                  className="w-full h-full object-cover rounded-full opacity-80 mix-blend-overlay"
                 />
               </div>
             </div>

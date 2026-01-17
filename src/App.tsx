@@ -211,35 +211,8 @@ export default function App() {
               const transcript = event.transcript.trim();
               if (!transcript) break;
 
-              // Map voice exchange into current conversation as a single assistant message
-              const assistantMessage: Message = {
-                id: generateId(),
-                role: "assistant",
-                content: transcript,
-              };
-
-              const currentId = activeConversationId;
-              if (currentId) {
-                setConversations((prev) =>
-                  prev.map((c) =>
-                    c.id === currentId
-                      ? { ...c, messages: [...c.messages, assistantMessage] }
-                      : c,
-                  ),
-                );
-              } else {
-                // If no active conversation yet, create one for this voice reply
-                const newConversation: Conversation = {
-                  id: generateId(),
-                  title:
-                    transcript.slice(0, 30) +
-                    (transcript.length > 30 ? "..." : ""),
-                  date: new Date().toISOString(),
-                  messages: [assistantMessage],
-                };
-                setConversations((prev) => [newConversation, ...prev]);
-                setActiveConversationId(newConversation.id);
-              }
+              // User requested to NOT create a chat on the frontend for voice conversations.
+              // The backend handles persistence, but we won't show it in the chat list immediately.
 
               setVoiceTranscriptPreview("");
               setVoiceStatus("Voice chat ready");
