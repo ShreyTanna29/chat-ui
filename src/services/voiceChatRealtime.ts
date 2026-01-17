@@ -29,6 +29,7 @@ export class VoiceChatRealtimeClient {
   private isRecording = false;
   private options: VoiceChatOptions;
   private assistantTranscript = "";
+  private nextStartTime = 0;
 
   constructor(options: VoiceChatOptions = {}) {
     this.options = options;
@@ -53,7 +54,7 @@ export class VoiceChatRealtimeClient {
 
     const wsBase = API_BASE_URL.replace(/^http/, "ws");
     const url = `${wsBase}/api/chat/voice-realtime?token=${encodeURIComponent(
-      token
+      token,
     )}`;
 
     return new Promise<void>((resolve, reject) => {
@@ -110,11 +111,16 @@ export class VoiceChatRealtimeClient {
         video: false,
       });
 
-    const source = ctx.createMediaStreamSource(this.mediaStream);
-    this.processor = ctx.createScriptProcessor(1024, 1, 1);
+      const source = ctx.createMediaStreamSource(this.mediaStream);
+      // Increase buffer size to 4096 to reduce WebSocket message frequency and overhead
+      this.processor = ctx.createScriptProcessor(4096, 1, 1);
 
       this.processor.onaudioprocess = (event) => {
-        if (!this.isRecording || !this.ws || this.ws.readyState !== WebSocket.OPEN)
+        if (
+          !this.isRecording ||
+          !this.ws ||
+          this.ws.readyState !== WebSocket.OPEN
+        )
           return;
 
         const input = event.inputBuffer.getChannelData(0);
@@ -125,7 +131,7 @@ export class VoiceChatRealtimeClient {
           JSON.stringify({
             type: "input_audio_buffer.append",
             audio: base64,
-          })
+          }),
         );
       };
 
@@ -159,12 +165,12 @@ export class VoiceChatRealtimeClient {
       this.ws.send(
         JSON.stringify({
           type: "input_audio_buffer.commit",
-        })
+        }),
       );
       this.ws.send(
         JSON.stringify({
           type: "response.create",
-        })
+        }),
       );
     }
 
@@ -178,12 +184,14 @@ export class VoiceChatRealtimeClient {
       this.ws = null;
     }
     this.assistantTranscript = "";
+    this.nextStartTime = 0;
   }
 
   private cleanupAudio() {
     if (this.processor) {
       this.processor.disconnect();
-      this.processor.onaudioprocess = null as unknown as ScriptProcessorNode["onaudioprocess"];
+      this.processor.onaudioprocess =
+        null as unknown as ScriptProcessorNode["onaudioprocess"];
       this.processor = null;
     }
     if (this.mediaStream) {
@@ -199,9 +207,10 @@ export class VoiceChatRealtimeClient {
     }
 
     if (!this.audioContext) {
-      const W = window as Window & typeof globalThis & {
-        webkitAudioContext?: typeof AudioContext;
-      };
+      const W = window as Window &
+        typeof globalThis & {
+          webkitAudioContext?: typeof AudioContext;
+        };
       const AudioContextCtor = W.AudioContext || W.webkitAudioContext;
       if (!AudioContextCtor) {
         this.emit({
@@ -220,13 +229,15 @@ export class VoiceChatRealtimeClient {
 
   private handleServerMessage(raw: unknown) {
     try {
-      const message = JSON.parse(raw);
+      const message = JSON.parse(String(raw));
       switch (message.type) {
         case "session.created":
           this.emit({ type: "session.created" });
           break;
         case "input_audio_buffer.speech_started":
           this.emit({ type: "user.speech_started" });
+          // Clear any pending audio playback when user starts speaking to avoid overlap
+          this.nextStartTime = 0;
           break;
         case "input_audio_buffer.speech_stopped":
           this.emit({ type: "user.speech_stopped" });
@@ -291,7 +302,15 @@ export class VoiceChatRealtimeClient {
     const source = ctx.createBufferSource();
     source.buffer = buffer;
     source.connect(ctx.destination);
-    source.start();
+
+    // Schedule audio to play seamlessly
+    // If nextStartTime is in the past (underrun), start immediately
+    // Otherwise, schedule for the end of the previous chunk
+    const startTime = Math.max(ctx.currentTime, this.nextStartTime);
+    source.start(startTime);
+
+    // Update next start time
+    this.nextStartTime = startTime + buffer.duration;
   }
 
   private float32ToPCM16(float32Array: Float32Array): Int16Array {
