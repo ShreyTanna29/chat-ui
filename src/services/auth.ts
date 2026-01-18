@@ -104,7 +104,7 @@ export async function refreshAccessToken(): Promise<{
     {
       method: "POST",
       body: JSON.stringify({ refreshToken }),
-    }
+    },
   );
 
   if (response.success && response.data) {
@@ -179,7 +179,7 @@ export async function googleLogin(token: string): Promise<{
 // Apple OAuth login
 export async function appleLogin(
   idToken: string,
-  name?: { firstName?: string; lastName?: string }
+  name?: { firstName?: string; lastName?: string },
 ): Promise<{
   success: boolean;
   user?: User;
@@ -253,4 +253,40 @@ export function getAppleOAuthUrl(): string {
   });
 
   return `https://appleid.apple.com/auth/authorize?${params.toString()}`;
+}
+
+// Request OTP for password reset
+export async function forgotPassword(email: string): Promise<{
+  success: boolean;
+  message?: string;
+}> {
+  const response = await apiFetch("/api/auth/forgot-password", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  });
+
+  return {
+    success: response.success,
+    message: response.message,
+  };
+}
+
+// Reset password with OTP
+export async function resetPassword(
+  email: string,
+  otp: string,
+  password: string,
+): Promise<{
+  success: boolean;
+  message?: string;
+}> {
+  const response = await apiFetch("/api/auth/reset-password", {
+    method: "POST",
+    body: JSON.stringify({ email, otp, password }),
+  });
+
+  return {
+    success: response.success,
+    message: response.message,
+  };
 }
