@@ -7,11 +7,15 @@ import {
   RotateCcw,
   Share2,
   Reply,
+  Volume2,
+  VolumeX,
+  Loader2,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useState, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
+import { speakText, TTSController } from "@/services/tts";
 
 // Code block component with copy button
 function CodeBlock({
@@ -44,7 +48,7 @@ function CodeBlock({
             "border border-transparent",
             copied
               ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/30"
-              : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface)]"
+              : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface)]",
           )}
           title="Copy code"
         >
@@ -93,6 +97,11 @@ export function ChatMessage({
   } | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
 
+  // TTS state
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isLoadingTTS, setIsLoadingTTS] = useState(false);
+  const ttsControllerRef = useRef<TTSController | null>(null);
+
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (
@@ -111,6 +120,53 @@ export function ChatMessage({
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
+  const handleSpeak = () => {
+    // If already speaking or loading, stop
+    if (isSpeaking || isLoadingTTS) {
+      if (ttsControllerRef.current) {
+        ttsControllerRef.current.stop();
+        ttsControllerRef.current = null;
+      }
+      setIsSpeaking(false);
+      setIsLoadingTTS(false);
+      return;
+    }
+
+    setIsLoadingTTS(true);
+
+    // speakText now returns controller synchronously (playback runs in background)
+    const controller = speakText(
+      content,
+      { voice: "nova" },
+      {
+        onStart: () => {
+          setIsLoadingTTS(false);
+          setIsSpeaking(true);
+        },
+        onEnd: () => {
+          setIsSpeaking(false);
+          ttsControllerRef.current = null;
+        },
+        onError: (error) => {
+          console.error("TTS error:", error);
+          setIsSpeaking(false);
+          setIsLoadingTTS(false);
+          ttsControllerRef.current = null;
+        },
+      },
+    );
+    ttsControllerRef.current = controller;
+  };
+
+  // Cleanup TTS on unmount
+  useEffect(() => {
+    return () => {
+      if (ttsControllerRef.current) {
+        ttsControllerRef.current.stop();
+      }
+    };
+  }, []);
 
   const handleMouseUp = () => {
     if (role === "user") return;
@@ -161,7 +217,7 @@ export function ChatMessage({
         "w-full py-8 animate-slide-up relative",
         isUser
           ? "bg-transparent"
-          : "bg-gradient-to-b from-[var(--color-surface)]/30 to-transparent border-t border-[var(--color-border)]/50"
+          : "bg-gradient-to-b from-[var(--color-surface)]/30 to-transparent border-t border-[var(--color-border)]/50",
       )}
     >
       {/* Ask Erudite Tooltip */}
@@ -188,7 +244,7 @@ export function ChatMessage({
       <div
         className={cn(
           "max-w-3xl mx-auto px-4 sm:px-6 flex gap-4",
-          isUser && "flex-row-reverse"
+          isUser && "flex-row-reverse",
         )}
       >
         {/* Avatar */}
@@ -197,7 +253,7 @@ export function ChatMessage({
             "flex-shrink-0 w-10 h-10 rounded-2xl flex items-center justify-center transition-all duration-300 shadow-lg",
             isUser
               ? "bg-gradient-to-br from-gray-700 to-gray-800 border border-[var(--color-border)] group-hover:shadow-gray-500/20"
-              : "bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-emerald-500/30 animate-float"
+              : "bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-emerald-500/30 animate-float",
           )}
         >
           {isUser ? (
@@ -218,7 +274,7 @@ export function ChatMessage({
           <div
             className={cn(
               "flex items-center gap-2 mb-2.5",
-              isUser && "justify-end"
+              isUser && "justify-end",
             )}
           >
             <span className="font-semibold text-sm text-[var(--color-text-primary)]">
@@ -278,7 +334,7 @@ export function ChatMessage({
                   "prose-table:w-full prose-table:my-6 prose-table:border-collapse",
                   "prose-th:text-left prose-th:p-2 prose-th:border-b prose-th:border-[var(--color-border)] prose-th:text-[var(--color-text-primary)]",
                   "prose-td:p-2 prose-td:border-b prose-td:border-[var(--color-border)] prose-td:text-[var(--color-text-secondary)]",
-                  isUser && "text-right prose-p:text-right"
+                  isUser && "text-right prose-p:text-right",
                 )}
               >
                 <ReactMarkdown
@@ -333,7 +389,7 @@ export function ChatMessage({
                       "hover:bg-[var(--color-surface)] active:scale-95",
                       copied
                         ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/30"
-                        : "text-[var(--color-text-secondary)]"
+                        : "text-[var(--color-text-secondary)]",
                     )}
                     title="Copy"
                   >
@@ -350,6 +406,44 @@ export function ChatMessage({
                     )}
                   </button>
 
+                  <button
+                    onClick={handleSpeak}
+                    className={cn(
+                      "flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all",
+                      "border border-[var(--color-border)] hover:border-[var(--color-border-hover)]",
+                      "hover:bg-[var(--color-surface)] active:scale-95",
+                      isSpeaking
+                        ? "text-red-400 bg-red-500/10 border-red-500/30"
+                        : isLoadingTTS
+                          ? "text-blue-400 bg-blue-500/10 border-blue-500/30"
+                          : "text-[var(--color-text-secondary)]",
+                    )}
+                    title={
+                      isSpeaking
+                        ? "Stop"
+                        : isLoadingTTS
+                          ? "Loading..."
+                          : "Speak"
+                    }
+                  >
+                    {isLoadingTTS ? (
+                      <>
+                        <Loader2 size={14} className="animate-spin" />
+                        <span>Loading...</span>
+                      </>
+                    ) : isSpeaking ? (
+                      <>
+                        <VolumeX size={14} />
+                        <span>Stop</span>
+                      </>
+                    ) : (
+                      <>
+                        <Volume2 size={14} />
+                        <span>Speak</span>
+                      </>
+                    )}
+                  </button>
+
                   <div className="w-px h-5 bg-[var(--color-border)]" />
 
                   <button
@@ -359,7 +453,7 @@ export function ChatMessage({
                       "hover:bg-[var(--color-surface)] active:scale-95",
                       feedback === "up"
                         ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/30"
-                        : "text-[var(--color-text-muted)] border-[var(--color-border)] hover:border-[var(--color-border-hover)] hover:text-[var(--color-text-secondary)]"
+                        : "text-[var(--color-text-muted)] border-[var(--color-border)] hover:border-[var(--color-border-hover)] hover:text-[var(--color-text-secondary)]",
                     )}
                     title="Good response"
                   >
@@ -375,7 +469,7 @@ export function ChatMessage({
                       "hover:bg-[var(--color-surface)] active:scale-95",
                       feedback === "down"
                         ? "text-red-400 bg-red-500/10 border-red-500/30"
-                        : "text-[var(--color-text-muted)] border-[var(--color-border)] hover:border-[var(--color-border-hover)] hover:text-[var(--color-text-secondary)]"
+                        : "text-[var(--color-text-muted)] border-[var(--color-border)] hover:border-[var(--color-border-hover)] hover:text-[var(--color-text-secondary)]",
                     )}
                     title="Bad response"
                   >
@@ -387,7 +481,7 @@ export function ChatMessage({
                       "p-2 rounded-xl transition-all border border-[var(--color-border)]",
                       "text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]",
                       "hover:bg-[var(--color-surface)] hover:border-[var(--color-border-hover)]",
-                      "active:scale-95"
+                      "active:scale-95",
                     )}
                     title="Regenerate"
                   >
@@ -399,7 +493,7 @@ export function ChatMessage({
                       "p-2 rounded-xl transition-all border border-[var(--color-border)]",
                       "text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]",
                       "hover:bg-[var(--color-surface)] hover:border-[var(--color-border-hover)]",
-                      "active:scale-95"
+                      "active:scale-95",
                     )}
                     title="Share"
                   >
@@ -414,7 +508,7 @@ export function ChatMessage({
                       "flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all",
                       "border border-[var(--color-border)] hover:border-emerald-500/30",
                       "text-[var(--color-text-secondary)] hover:text-emerald-400",
-                      "hover:bg-emerald-500/10 active:scale-95"
+                      "hover:bg-emerald-500/10 active:scale-95",
                     )}
                     title="Reply to this message"
                   >
