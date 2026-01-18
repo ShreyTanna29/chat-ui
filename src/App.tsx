@@ -3,6 +3,7 @@ import { Sidebar } from "@/components/Sidebar";
 import { ChatContainer } from "@/components/ChatContainer";
 import { AuthPage } from "@/components/AuthPage";
 import { SpacesSection } from "@/components/SpacesSection";
+import { DiscoverSection } from "@/components/DiscoverSection";
 import { ChatMode } from "@/components/ChatInput";
 import { useAuth } from "@/contexts/AuthContext";
 import { streamChat } from "@/services/chat";
@@ -56,6 +57,7 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [streamingContent, setStreamingContent] = useState("");
   const [isSpacesView, setIsSpacesView] = useState(false);
+  const [isDiscoverView, setIsDiscoverView] = useState(false);
   const [activeSpaceId, setActiveSpaceId] = useState<string | null>(null);
   const [activeSpaceName, setActiveSpaceName] = useState<string | null>(null);
 
@@ -88,8 +90,8 @@ export default function App() {
         prev.map((c) =>
           c.id === activeConversationId
             ? { ...c, messages: [...c.messages, partialMessage] }
-            : c
-        )
+            : c,
+        ),
       );
     }
 
@@ -99,7 +101,7 @@ export default function App() {
   }, [streamingContent, activeConversationId]);
 
   const activeConversation = conversations.find(
-    (c) => c.id === activeConversationId
+    (c) => c.id === activeConversationId,
   );
   const messages = activeConversation?.messages || [];
 
@@ -121,7 +123,7 @@ export default function App() {
                 role: msg.role,
                 content: msg.content,
               })) || [],
-          })
+          }),
         );
         setConversations(formattedConversations);
       }
@@ -145,8 +147,8 @@ export default function App() {
                   content: msg.content,
                 })),
               }
-            : c
-        )
+            : c,
+        ),
       );
     }
   };
@@ -162,6 +164,7 @@ export default function App() {
     setActiveSpaceId(null);
     setActiveSpaceName(null);
     setIsSpacesView(false);
+    setIsDiscoverView(false);
     setSidebarOpen(false);
   }, []);
 
@@ -188,7 +191,7 @@ export default function App() {
       // Always load full conversation since the list API only returns partial messages
       await loadFullConversation(id);
     },
-    []
+    [],
   );
 
   const handleDeleteConversation = useCallback(
@@ -201,7 +204,7 @@ export default function App() {
         }
       }
     },
-    [activeConversationId]
+    [activeConversationId],
   );
 
   const handleNewChatInSpace = useCallback(
@@ -217,7 +220,7 @@ export default function App() {
       setIsSpacesView(false);
       setSidebarOpen(false);
     },
-    []
+    [],
   );
 
   // Voice chat lifecycle & mapping to messages
@@ -333,8 +336,8 @@ export default function App() {
           prev.map((c) =>
             c.id === currentConversationId
               ? { ...c, messages: [...c.messages, userMessage] }
-              : c
-          )
+              : c,
+          ),
         );
       }
 
@@ -384,7 +387,7 @@ export default function App() {
                   };
                 }
                 return c;
-              })
+              }),
             );
 
             setIsLoading(false);
@@ -405,8 +408,8 @@ export default function App() {
               prev.map((c) =>
                 c.id === currentConversationId
                   ? { ...c, messages: [...c.messages, errorMessage] }
-                  : c
-              )
+                  : c,
+              ),
             );
 
             setIsLoading(false);
@@ -414,12 +417,12 @@ export default function App() {
             setStreamingContent("");
             abortRef.current = null;
           },
-        }
+        },
       );
 
       abortRef.current = abort;
     },
-    [activeConversationId, activeSpaceId]
+    [activeConversationId, activeSpaceId],
   );
 
   // Show loading state while checking auth
@@ -465,11 +468,24 @@ export default function App() {
         isOpen={sidebarOpen}
         onToggle={() => setSidebarOpen(!sidebarOpen)}
         isSpacesView={isSpacesView}
-        onShowSpaces={() => setIsSpacesView(true)}
-        onShowChat={() => setIsSpacesView(false)}
+        onShowSpaces={() => {
+          setIsSpacesView(true);
+          setIsDiscoverView(false);
+        }}
+        onShowChat={() => {
+          setIsSpacesView(false);
+          setIsDiscoverView(false);
+        }}
+        onShowDiscover={() => {
+          setIsDiscoverView(true);
+          setIsSpacesView(false);
+          setSidebarOpen(false);
+        }}
       />
       <main className="main-content">
-        {isSpacesView ? (
+        {isDiscoverView ? (
+          <DiscoverSection />
+        ) : isSpacesView ? (
           <SpacesSection
             onOpenConversation={handleSelectConversation}
             onStartNewChatInSpace={handleNewChatInSpace}
