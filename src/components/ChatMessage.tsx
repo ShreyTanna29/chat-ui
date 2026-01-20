@@ -17,11 +17,170 @@ import {
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
+import hljs from "highlight.js";
+import "highlight.js/styles/atom-one-dark.css";
 import { useState, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { speakText, TTSController } from "@/services/tts";
+
+// Language alias map to normalize language names for syntax highlighting
+// Maps common aliases and misspellings to the actual language names supported by Prism
+const languageAliases: Record<string, string> = {
+  // JavaScript variants
+  js: "javascript",
+  jsx: "jsx",
+  ts: "typescript",
+  tsx: "tsx",
+  node: "javascript",
+  nodejs: "javascript",
+
+  // Python
+  py: "python",
+  python3: "python",
+  py3: "python",
+
+  // Shell/Bash
+  sh: "bash",
+  shell: "bash",
+  zsh: "bash",
+  terminal: "bash",
+  console: "bash",
+
+  // Markup/Web
+  html: "markup",
+  htm: "markup",
+  xml: "markup",
+  svg: "markup",
+  xhtml: "markup",
+  rss: "markup",
+  atom: "markup",
+  mathml: "markup",
+  ssml: "markup",
+
+  // Styles
+  sass: "scss",
+  styl: "stylus",
+
+  // Data formats
+  yml: "yaml",
+
+  // C variants
+  c: "c",
+  "c++": "cpp",
+  cc: "cpp",
+  cxx: "cpp",
+  "h++": "cpp",
+  hh: "cpp",
+  hpp: "cpp",
+  hxx: "cpp",
+
+  // C#
+  "c#": "csharp",
+  cs: "csharp",
+  dotnet: "csharp",
+
+  // Other languages
+  rb: "ruby",
+  rs: "rust",
+  kt: "kotlin",
+  kts: "kotlin",
+  swift: "swift",
+  objc: "objectivec",
+  "objective-c": "objectivec",
+  pl: "perl",
+  pm: "perl",
+  lua: "lua",
+  r: "r",
+  scala: "scala",
+  groovy: "groovy",
+  gradle: "groovy",
+  clj: "clojure",
+  cljs: "clojure",
+  erl: "erlang",
+  hrl: "erlang",
+  ex: "elixir",
+  exs: "elixir",
+  hs: "haskell",
+  lhs: "haskell",
+  ml: "ocaml",
+  mli: "ocaml",
+  fs: "fsharp",
+  fsi: "fsharp",
+  fsx: "fsharp",
+  "f#": "fsharp",
+  ps1: "powershell",
+  psm1: "powershell",
+  psd1: "powershell",
+  ps: "powershell",
+
+  // Configs
+  dockerfile: "docker",
+  tf: "hcl",
+  hcl: "hcl",
+  toml: "toml",
+  ini: "ini",
+  conf: "nginx",
+  nginx: "nginx",
+  apache: "apacheconf",
+  htaccess: "apacheconf",
+
+  // Databases
+  psql: "sql",
+  mysql: "sql",
+  postgres: "sql",
+  sqlite: "sql",
+  plsql: "sql",
+
+  // Misc
+  md: "markdown",
+  mdx: "markdown",
+  tex: "latex",
+  latex: "latex",
+  asm: "nasm",
+  assembly: "nasm",
+  vim: "vim",
+  viml: "vim",
+  makefile: "makefile",
+  make: "makefile",
+  cmake: "cmake",
+  diff: "diff",
+  patch: "diff",
+  git: "git",
+  graphql: "graphql",
+  gql: "graphql",
+  proto: "protobuf",
+  protobuf: "protobuf",
+  regex: "regex",
+  regexp: "regex",
+  solidity: "solidity",
+  sol: "solidity",
+  wasm: "wasm",
+  webassembly: "wasm",
+
+  // Plain text fallbacks
+  text: "text",
+  txt: "text",
+  plain: "text",
+  log: "text",
+  output: "text",
+  plaintext: "text",
+  "": "text",
+};
+
+// Function to normalize language name
+function normalizeLanguage(lang: string | undefined): string {
+  if (!lang) return "text";
+
+  const normalized = lang.toLowerCase().trim();
+
+  // Check if it's in our alias map
+  if (languageAliases[normalized]) {
+    return languageAliases[normalized];
+  }
+
+  // Return as-is if not in aliases (Prism might still support it directly)
+  return normalized;
+}
 
 // Type for message metadata from Cloudinary
 interface MessageMetadata {
@@ -43,6 +202,7 @@ interface MessageMetadata {
 }
 
 // Code block component with copy button and syntax highlighting
+// Code block component with copy button and syntax highlighting
 function CodeBlock({
   children,
   language,
@@ -51,7 +211,24 @@ function CodeBlock({
   language?: string;
 }) {
   const [copied, setCopied] = useState(false);
+  const codeRef = useRef<HTMLElement>(null);
   const codeString = String(children).replace(/\n$/, "");
+
+  // Normalize the language name for better syntax highlighting compatibility
+  // If language is missing, we pass undefined to allow auto-detection
+  const normalizedLang = language ? normalizeLanguage(language) : undefined;
+  // Display the original language name (if provided) for the header, but fallback to normalized or "code"
+  const displayLang =
+    language || (normalizedLang !== "text" ? normalizedLang : "code");
+
+  useEffect(() => {
+    if (codeRef.current) {
+      // Clear any previous highlighting attributes
+      codeRef.current.removeAttribute("data-highlighted");
+      // Apply highlighting
+      hljs.highlightElement(codeRef.current);
+    }
+  }, [codeString, normalizedLang]);
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(codeString);
@@ -59,12 +236,16 @@ function CodeBlock({
     setTimeout(() => setCopied(false), 2000);
   };
 
+  // Generate line numbers
+  const lines = codeString.split("\n");
+  const showLineNumbers = lines.length > 3;
+
   return (
     <div className="relative my-4 rounded-xl overflow-hidden bg-[#282c34] border border-[var(--color-border)]">
       {/* Header with language and copy button */}
       <div className="flex items-center justify-between px-4 py-2.5 bg-[#21252b] border-b border-[var(--color-border)]">
         <span className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider">
-          {language || "code"}
+          {displayLang || "code"}
         </span>
         <button
           onClick={handleCopy}
@@ -91,49 +272,36 @@ function CodeBlock({
         </button>
       </div>
       {/* Code content with syntax highlighting */}
-      <div className="overflow-x-auto [&_pre]:!bg-transparent [&_code]:!bg-transparent [&_span]:!bg-transparent">
-        <SyntaxHighlighter
-          language={language || "plaintext"}
-          style={oneDark}
-          PreTag={({ children, ...props }) => (
-            <pre
-              {...props}
-              style={{
-                margin: 0,
-                padding: "1rem",
-                background: "transparent",
-                overflow: "visible",
-              }}
+      <div className="overflow-x-auto p-4">
+        <div className="flex">
+          {showLineNumbers && (
+            <div
+              className="flex flex-col pr-4 select-none text-right"
+              style={{ minWidth: "2.5em" }}
             >
-              {children}
-            </pre>
+              {lines.map((_, i) => (
+                <span
+                  key={i}
+                  className="text-[#636d83] text-sm leading-relaxed font-mono"
+                >
+                  {i + 1}
+                </span>
+              ))}
+            </div>
           )}
-          customStyle={{
-            margin: 0,
-            padding: 0,
-            background: "transparent",
-            fontSize: "0.875rem",
-            lineHeight: "1.625",
-          }}
-          codeTagProps={{
-            style: {
-              fontFamily:
-                "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
-              background: "transparent",
-            },
-          }}
-          showLineNumbers={codeString.split("\n").length > 3}
-          lineNumberStyle={{
-            minWidth: "2.5em",
-            paddingRight: "1em",
-            color: "#636d83",
-            userSelect: "none",
-          }}
-          wrapLines={true}
-          wrapLongLines={true}
-        >
-          {codeString}
-        </SyntaxHighlighter>
+          <pre className="flex-1 m-0 bg-transparent overflow-visible">
+            <code
+              ref={codeRef}
+              className={cn(
+                "hljs font-mono text-sm leading-relaxed bg-transparent",
+                normalizedLang && `language-${normalizedLang}`,
+              )}
+              style={{ background: "transparent" }}
+            >
+              {codeString}
+            </code>
+          </pre>
+        </div>
       </div>
     </div>
   );
@@ -145,6 +313,97 @@ interface ChatMessageProps {
   isLoading?: boolean;
   metadata?: MessageMetadata;
   onAskErudite?: (text: string) => void;
+}
+
+// Heuristic function to check if text looks like code
+function isCodeLike(text: string): boolean {
+  if (!text || text.length < 20) return false;
+
+  const lines = text.split("\n");
+  const trimmedLines = lines.map((l) => l.trim()).filter(Boolean);
+
+  // 1. Check for common programming keywords
+  const keywords = [
+    "function",
+    "const",
+    "let",
+    "var",
+    "import",
+    "export",
+    "class",
+    "interface",
+    "return",
+    "if",
+    "else",
+    "for",
+    "while",
+    "switch",
+    "case",
+    "break",
+    "public",
+    "private",
+    "protected",
+    "static",
+    "void",
+    "int",
+    "string",
+    "bool",
+    "#include",
+    "using namespace",
+    "def",
+    "package",
+    "struct",
+    "impl",
+    "console.log",
+    "System.out.println",
+    "printf",
+    "echo",
+    "print",
+  ];
+
+  // Count keyword occurrences
+  let keywordCount = 0;
+  const words = text.split(/\s+/);
+  for (const word of words) {
+    if (keywords.includes(word)) keywordCount++;
+  }
+
+  // 2. Check for structural indicators
+  const hasBraces = text.includes("{") && text.includes("}");
+  const hasSemicolons = text.includes(";");
+  const hasParens = text.includes("(") && text.includes(")");
+  const hasArrows = text.includes("=>") || text.includes("->");
+  const hasComments =
+    text.includes("//") || text.includes("/*") || text.includes("# ");
+
+  // 3. Check for indentation (lines starting with spaces)
+  const indentedLines = lines.filter(
+    (l) => l.startsWith("  ") || l.startsWith("\t"),
+  ).length;
+
+  // Scoring system
+  let score = 0;
+
+  if (keywordCount > 0) score += keywordCount * 2;
+  if (hasBraces) score += 3;
+  if (hasSemicolons) score += 2;
+  if (hasParens) score += 1;
+  if (hasArrows) score += 3;
+  if (hasComments) score += 3;
+  if (indentedLines > 1) score += 3;
+
+  // Penalize for common sentence structure (capital letter start, period end)
+  if (
+    /^[A-Z]/.test(text) &&
+    /\.$/.test(text.trim()) &&
+    !hasSemicolons &&
+    !hasBraces
+  ) {
+    score -= 5;
+  }
+
+  // Threshold
+  return score >= 5;
 }
 
 export function ChatMessage({
@@ -412,19 +671,46 @@ export function ChatMessage({
                     a: (props) => (
                       <a {...props} target="_blank" rel="noopener noreferrer" />
                     ),
+                    p: ({ children }) => {
+                      // Check if the paragraph content looks like code
+                      const content = String(children);
+                      if (isCodeLike(content)) {
+                        return <CodeBlock>{children}</CodeBlock>;
+                      }
+                      return <p>{children}</p>;
+                    },
                     pre: ({ children }) => {
-                      // Extract the code element from pre children
+                      // Just return children - our code component will handle rendering
                       return <>{children}</>;
                     },
-                    code: ({ node, className, children, ...props }) => {
-                      // Check if this code is inside a pre tag (code block) by checking the parent
-                      const isCodeBlock =
-                        node?.position && className?.startsWith("language-");
-                      // Also check if it's a multi-line code without language
-                      const content = String(children);
+                    code: ({
+                      node,
+                      className,
+                      children,
+                      style,
+                      ref,
+                      ...props
+                    }) => {
+                      // Check if this is a code block by looking at parent node
+                      // In markdown, code blocks are wrapped in <pre><code>, while inline code is just <code>
+                      const isInline =
+                        !node?.position ||
+                        (node.position.start.line === node.position.end.line &&
+                          !String(children).includes("\n"));
+
+                      // Also check for language class (indicates a fenced code block)
+                      const hasLanguageClass =
+                        className?.startsWith("language-");
+
+                      // Get content and check if it has newlines
+                      const content = String(children).replace(/\n$/, "");
                       const hasNewlines = content.includes("\n");
 
-                      if (isCodeBlock || hasNewlines) {
+                      // Treat as code block if: has language class, has newlines, or is multiline position
+                      const isCodeBlock =
+                        hasLanguageClass || hasNewlines || !isInline;
+
+                      if (isCodeBlock) {
                         const language =
                           className?.replace("language-", "") || "";
                         return (
