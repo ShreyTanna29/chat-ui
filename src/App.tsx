@@ -48,6 +48,7 @@ export default function App() {
     loginWithApple,
     oauthError,
     clearOAuthError,
+    uploadAvatar,
   } = useAuth();
 
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -450,6 +451,7 @@ export default function App() {
         onSignup={signup}
         onGoogleLogin={loginWithGoogle}
         onAppleLogin={loginWithApple}
+        onUploadProfilePic={uploadAvatar}
         isLoading={authLoading}
         oauthError={oauthError}
         onClearOAuthError={clearOAuthError}
@@ -467,6 +469,8 @@ export default function App() {
         onDeleteConversation={handleDeleteConversation}
         onLogout={logout}
         userName={user?.name || "User"}
+        userAvatar={user?.avatar}
+        onUploadAvatar={uploadAvatar}
         isOpen={sidebarOpen}
         onToggle={() => setSidebarOpen(!sidebarOpen)}
         isSpacesView={isSpacesView}

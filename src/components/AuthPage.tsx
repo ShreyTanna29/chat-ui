@@ -1,4 +1,4 @@
-import { useState, FormEvent, useEffect } from "react";
+import { useState, FormEvent, useEffect, useRef } from "react";
 import {
   Mail,
   Lock,
@@ -9,6 +9,8 @@ import {
   Loader2,
   ArrowLeft,
   KeyRound,
+  Camera,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { forgotPassword, resetPassword } from "@/services/auth";
@@ -25,6 +27,9 @@ interface AuthPageProps {
   ) => Promise<{ success: boolean; message?: string }>;
   onGoogleLogin?: () => void;
   onAppleLogin?: () => void;
+  onUploadProfilePic?: (
+    file: File,
+  ) => Promise<{ success: boolean; message?: string }>;
   isLoading?: boolean;
   oauthError?: string | null;
   onClearOAuthError?: () => void;
@@ -37,6 +42,7 @@ export function AuthPage({
   onSignup,
   onGoogleLogin,
   onAppleLogin,
+  onUploadProfilePic,
   isLoading = false,
   oauthError,
   onClearOAuthError,
@@ -53,6 +59,40 @@ export function AuthPage({
   const [password, setPassword] = useState("");
   const [otp, setOtp] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+
+  // Profile picture (optional, for signup)
+  const [profilePic, setProfilePic] = useState<File | null>(null);
+  const [profilePicPreview, setProfilePicPreview] = useState<string | null>(
+    null,
+  );
+  const profilePicInputRef = useRef<HTMLInputElement>(null);
+
+  const handleProfilePicChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (!file.type.startsWith("image/")) {
+        setError("Please select an image file");
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        setError("Image must be less than 5MB");
+        return;
+      }
+      setProfilePic(file);
+      setProfilePicPreview(URL.createObjectURL(file));
+    }
+  };
+
+  const clearProfilePic = () => {
+    setProfilePic(null);
+    if (profilePicPreview) {
+      URL.revokeObjectURL(profilePicPreview);
+    }
+    setProfilePicPreview(null);
+    if (profilePicInputRef.current) {
+      profilePicInputRef.current.value = "";
+    }
+  };
 
   // Show OAuth errors
   useEffect(() => {
@@ -83,6 +123,9 @@ export function AuthPage({
         const result = await onSignup(name, email, password);
         if (!result.success) {
           setError(result.message || "Signup failed");
+        } else if (profilePic && onUploadProfilePic) {
+          // Upload profile picture after successful signup (optional)
+          await onUploadProfilePic(profilePic);
         }
       } else if (mode === "forgot") {
         const result = await forgotPassword(email);
@@ -176,6 +219,78 @@ export function AuthPage({
         {/* Auth Card */}
         <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-8 shadow-xl">
           <form onSubmit={handleSubmit} className="space-y-5">
+            {/* Profile Picture field (signup only, optional) */}
+            {mode === "signup" && (
+              <div className="space-y-2 animate-slide-up">
+                <label className="text-sm font-medium text-[var(--color-text-secondary)]">
+                  Profile Picture{" "}
+                  <span className="text-[var(--color-text-muted)] font-normal">
+                    (optional)
+                  </span>
+                </label>
+                <div className="flex items-center gap-4 mt-3">
+                  {/* Hidden file input */}
+                  <input
+                    ref={profilePicInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleProfilePicChange}
+                  />
+
+                  {/* Avatar preview or upload button */}
+                  <button
+                    type="button"
+                    onClick={() => profilePicInputRef.current?.click()}
+                    className={cn(
+                      "relative w-16 h-16 rounded-xl overflow-hidden flex-shrink-0",
+                      "border-2 border-dashed border-[var(--color-border)] hover:border-emerald-500/50",
+                      "transition-all duration-200 group",
+                      profilePicPreview && "border-solid border-emerald-500/50",
+                    )}
+                  >
+                    {profilePicPreview ? (
+                      <img
+                        src={profilePicPreview}
+                        alt="Profile preview"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-[var(--color-surface-hover)] flex items-center justify-center">
+                        <Camera
+                          size={24}
+                          className="text-[var(--color-text-muted)] group-hover:text-emerald-400 transition-colors"
+                        />
+                      </div>
+                    )}
+
+                    {/* Hover overlay */}
+                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Camera size={20} className="text-white" />
+                    </div>
+                  </button>
+
+                  <div className="flex-1">
+                    <p className="text-sm text-[var(--color-text-muted)]">
+                      {profilePicPreview
+                        ? "Click to change"
+                        : "Click to upload"}
+                    </p>
+                    {profilePicPreview && (
+                      <button
+                        type="button"
+                        onClick={clearProfilePic}
+                        className="text-sm text-red-400 hover:text-red-300 flex items-center gap-1 mt-1"
+                      >
+                        <X size={14} />
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Name field (signup only) */}
             {mode === "signup" && (
               <div className="space-y-2 animate-slide-up">

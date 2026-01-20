@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import {
   Plus,
   MessageSquare,
@@ -10,6 +10,8 @@ import {
   LogOut,
   Folder,
   Compass,
+  Camera,
+  Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -27,6 +29,10 @@ interface SidebarProps {
   onDeleteConversation?: (id: string) => void;
   onLogout?: () => void;
   userName?: string;
+  userAvatar?: string | null;
+  onUploadAvatar?: (
+    file: File,
+  ) => Promise<{ success: boolean; message?: string }>;
   isOpen: boolean;
   onToggle: () => void;
   // Spaces
@@ -45,6 +51,8 @@ export function Sidebar({
   onDeleteConversation,
   onLogout,
   userName = "User",
+  userAvatar,
+  onUploadAvatar,
   isOpen,
   onToggle,
   isSpacesView,
@@ -53,6 +61,27 @@ export function Sidebar({
   onShowDiscover,
 }: SidebarProps) {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleAvatarClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !onUploadAvatar) return;
+
+    setIsUploadingAvatar(true);
+    try {
+      await onUploadAvatar(file);
+    } finally {
+      setIsUploadingAvatar(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
 
   return (
     <>
@@ -270,11 +299,46 @@ export function Sidebar({
             {/* Shimmer effect */}
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity animate-shimmer" />
 
-            {/* Avatar */}
+            {/* Avatar with upload functionality */}
             <div className="relative flex-shrink-0">
-              <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white font-bold text-base shadow-lg shadow-emerald-500/20">
-                {userName.charAt(0).toUpperCase()}
-              </div>
+              {/* Hidden file input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleFileChange}
+              />
+
+              <button
+                onClick={handleAvatarClick}
+                disabled={isUploadingAvatar}
+                className="relative w-11 h-11 rounded-xl overflow-hidden group/avatar cursor-pointer focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-[var(--color-sidebar)]"
+                title="Click to upload profile picture"
+              >
+                {/* Avatar image or initials */}
+                {userAvatar ? (
+                  <img
+                    src={userAvatar}
+                    alt={userName}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white font-bold text-base shadow-lg shadow-emerald-500/20">
+                    {userName.charAt(0).toUpperCase()}
+                  </div>
+                )}
+
+                {/* Camera overlay on hover */}
+                <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 transition-opacity">
+                  {isUploadingAvatar ? (
+                    <Loader2 size={18} className="text-white animate-spin" />
+                  ) : (
+                    <Camera size={18} className="text-white" />
+                  )}
+                </div>
+              </button>
+
               {/* Online indicator */}
               <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-green-400 border-[3px] border-[var(--color-sidebar)] shadow-sm" />
             </div>

@@ -15,6 +15,7 @@ import {
   googleLogin as apiGoogleLogin,
   getGoogleOAuthUrl,
   getAppleOAuthUrl,
+  uploadProfilePicture,
 } from "@/services/auth";
 import { getAccessToken, clearTokens, setTokens } from "@/services/api";
 
@@ -25,12 +26,12 @@ interface AuthContextType {
   oauthError: string | null;
   login: (
     email: string,
-    password: string
+    password: string,
   ) => Promise<{ success: boolean; message?: string }>;
   signup: (
     name: string,
     email: string,
-    password: string
+    password: string,
   ) => Promise<{ success: boolean; message?: string }>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -38,6 +39,7 @@ interface AuthContextType {
   loginWithApple: () => void;
   handleOAuthCallback: () => Promise<boolean>;
   clearOAuthError: () => void;
+  uploadAvatar: (file: File) => Promise<{ success: boolean; message?: string }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -195,7 +197,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsLoading(false);
       }
     },
-    []
+    [],
   );
 
   const logout = useCallback(async () => {
@@ -232,6 +234,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setOauthError(null);
   }, []);
 
+  // Upload profile picture
+  const uploadAvatar = useCallback(async (file: File) => {
+    const result = await uploadProfilePicture(file);
+    if (result.success && result.user) {
+      setUser(result.user);
+      return { success: true };
+    }
+    return { success: false, message: result.message || "Upload failed" };
+  }, []);
+
   return (
     <AuthContext.Provider
       value={{
@@ -247,6 +259,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loginWithApple,
         handleOAuthCallback,
         clearOAuthError,
+        uploadAvatar,
       }}
     >
       {children}

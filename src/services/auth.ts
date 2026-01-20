@@ -1,14 +1,22 @@
-import { apiFetch, setTokens, clearTokens, getRefreshToken } from "./api";
+import {
+  apiFetch,
+  apiFormDataFetch,
+  setTokens,
+  clearTokens,
+  getRefreshToken,
+} from "./api";
 
 export interface User {
   _id: string;
   name: string;
   email: string;
+  avatar?: string | null;
   isVerified: boolean;
   preferences: {
     theme: string;
     language: string;
   };
+  searchHistory?: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -289,4 +297,68 @@ export async function resetPassword(
     success: response.success,
     message: response.message,
   };
+}
+
+// Response type for profile picture upload
+export interface ProfilePictureUploadResponse {
+  user: User;
+  imageUrl: string;
+  publicId: string;
+}
+
+// Upload profile picture
+// Max file size: 5MB, allowed types: images only
+export async function uploadProfilePicture(imageFile: File): Promise<{
+  success: boolean;
+  user?: User;
+  imageUrl?: string;
+  publicId?: string;
+  message?: string;
+}> {
+  // Validate file type
+  if (!imageFile.type.startsWith("image/")) {
+    return { success: false, message: "Only image files are allowed" };
+  }
+
+  // Validate file size (5MB max)
+  const maxSize = 5 * 1024 * 1024; // 5MB in bytes
+  if (imageFile.size > maxSize) {
+    return { success: false, message: "File size exceeds the 5MB limit" };
+  }
+
+  const formData = new FormData();
+  formData.append("profilePic", imageFile);
+
+  try {
+    const response = await apiFormDataFetch(
+      "/api/auth/profile/picture",
+      formData,
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return {
+        success: false,
+        message: data.message || "Failed to upload profile picture",
+      };
+    }
+
+    if (data.success && data.data) {
+      return {
+        success: true,
+        user: data.data.user,
+        imageUrl: data.data.imageUrl,
+        publicId: data.data.publicId,
+      };
+    }
+
+    return { success: false, message: data.message || "Upload failed" };
+  } catch (error) {
+    console.error("Profile picture upload error:", error);
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : "Network error",
+    };
+  }
 }
