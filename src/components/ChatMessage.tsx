@@ -320,7 +320,6 @@ function isCodeLike(text: string): boolean {
   if (!text || text.length < 20) return false;
 
   const lines = text.split("\n");
-  const trimmedLines = lines.map((l) => l.trim()).filter(Boolean);
 
   // 1. Check for common programming keywords
   const keywords = [
