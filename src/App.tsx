@@ -22,6 +22,7 @@ interface Message {
   id: string;
   role: "user" | "assistant";
   content: string;
+  metadata?: Record<string, unknown>;
 }
 
 interface Conversation {
@@ -145,6 +146,7 @@ export default function App() {
                   id: msg.id,
                   role: msg.role,
                   content: msg.content,
+                  metadata: msg.metadata,
                 })),
               }
             : c,

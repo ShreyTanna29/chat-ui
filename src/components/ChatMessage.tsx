@@ -10,12 +10,35 @@ import {
   Volume2,
   VolumeX,
   Loader2,
+  FileText,
+  Download,
+  X,
+  Image as ImageIcon,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useState, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { speakText, TTSController } from "@/services/tts";
+
+// Type for message metadata from Cloudinary
+interface MessageMetadata {
+  hasImage?: boolean;
+  imageType?: string;
+  imageUrl?: string;
+  imagePublicId?: string;
+  hasDocument?: boolean;
+  documentName?: string;
+  documentType?: string;
+  documentSize?: number;
+  documentUrl?: string;
+  documentPublicId?: string;
+  generatedImages?: Array<{
+    url: string;
+    revised_prompt?: string;
+  }>;
+  [key: string]: unknown;
+}
 
 // Code block component with copy button
 function CodeBlock({
@@ -79,6 +102,7 @@ interface ChatMessageProps {
   role: "user" | "assistant";
   content: string;
   isLoading?: boolean;
+  metadata?: MessageMetadata;
   onAskErudite?: (text: string) => void;
 }
 
@@ -86,6 +110,7 @@ export function ChatMessage({
   role,
   content,
   isLoading,
+  metadata,
   onAskErudite,
 }: ChatMessageProps) {
   const [copied, setCopied] = useState(false);
@@ -96,6 +121,7 @@ export function ChatMessage({
     left: number;
   } | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+  const [imageZoom, setImageZoom] = useState<string | null>(null);
 
   // TTS state
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -378,6 +404,107 @@ export function ChatMessage({
                 </ReactMarkdown>
               </div>
 
+              {/* Attachments display - User uploaded images and documents */}
+              {metadata && (metadata.hasImage || metadata.hasDocument) && (
+                <div
+                  className={cn(
+                    "mt-4 flex flex-wrap gap-3",
+                    isUser && "justify-end",
+                  )}
+                >
+                  {/* Image attachment */}
+                  {metadata.hasImage && metadata.imageUrl && (
+                    <div className="relative group/image">
+                      <button
+                        onClick={() => setImageZoom(metadata.imageUrl || null)}
+                        className="relative block rounded-xl overflow-hidden border border-[var(--color-border)] hover:border-emerald-500/40 transition-all shadow-lg hover:shadow-emerald-500/20"
+                      >
+                        <img
+                          src={metadata.imageUrl}
+                          alt="Uploaded image"
+                          className="max-w-[200px] max-h-[200px] object-cover"
+                        />
+                        <div className="absolute inset-0 bg-black/0 group-hover/image:bg-black/20 transition-all flex items-center justify-center opacity-0 group-hover/image:opacity-100">
+                          <ImageIcon
+                            size={24}
+                            className="text-white drop-shadow-md"
+                          />
+                        </div>
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Document attachment */}
+                  {metadata.hasDocument && metadata.documentUrl && (
+                    <a
+                      href={metadata.documentUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      download={metadata.documentName}
+                      className={cn(
+                        "flex items-center gap-3 px-4 py-3 rounded-xl",
+                        "bg-[var(--color-surface)] border border-[var(--color-border)]",
+                        "hover:border-emerald-500/40 hover:bg-[var(--color-surface-hover)]",
+                        "transition-all shadow-lg hover:shadow-emerald-500/20",
+                      )}
+                    >
+                      <div className="p-2 rounded-lg bg-emerald-500/10">
+                        <FileText size={20} className="text-emerald-400" />
+                      </div>
+                      <div className="flex flex-col items-start">
+                        <span className="text-sm font-medium text-[var(--color-text-primary)] max-w-[150px] truncate">
+                          {metadata.documentName || "Document"}
+                        </span>
+                        <span className="text-xs text-[var(--color-text-muted)]">
+                          {metadata.documentSize
+                            ? `${(metadata.documentSize / 1024).toFixed(1)} KB`
+                            : metadata.documentType || "File"}
+                        </span>
+                      </div>
+                      <Download
+                        size={16}
+                        className="text-[var(--color-text-muted)] ml-2"
+                      />
+                    </a>
+                  )}
+                </div>
+              )}
+
+              {/* AI Generated images */}
+              {!isUser &&
+                metadata?.generatedImages &&
+                metadata.generatedImages.length > 0 && (
+                  <div className="mt-4 flex flex-wrap gap-3">
+                    {metadata.generatedImages.map((img, idx) => (
+                      <div key={idx} className="relative group/genimg">
+                        <button
+                          onClick={() => setImageZoom(img.url)}
+                          className="relative block rounded-xl overflow-hidden border border-[var(--color-border)] hover:border-emerald-500/40 transition-all shadow-lg hover:shadow-emerald-500/20"
+                        >
+                          <img
+                            src={img.url}
+                            alt={
+                              img.revised_prompt || `Generated image ${idx + 1}`
+                            }
+                            className="max-w-[280px] max-h-[280px] object-cover"
+                          />
+                          <div className="absolute inset-0 bg-black/0 group-hover/genimg:bg-black/20 transition-all flex items-center justify-center opacity-0 group-hover/genimg:opacity-100">
+                            <ImageIcon
+                              size={24}
+                              className="text-white drop-shadow-md"
+                            />
+                          </div>
+                        </button>
+                        {img.revised_prompt && (
+                          <p className="text-xs text-[var(--color-text-muted)] mt-2 max-w-[280px] line-clamp-2">
+                            {img.revised_prompt}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
               {/* Actions - enhanced */}
               {!isUser && (
                 <div className="mt-4 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-all duration-300 animate-slide-up">
@@ -521,6 +648,27 @@ export function ChatMessage({
           )}
         </div>
       </div>
+
+      {/* Image zoom modal */}
+      {imageZoom && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 animate-in fade-in duration-200"
+          onClick={() => setImageZoom(null)}
+        >
+          <button
+            onClick={() => setImageZoom(null)}
+            className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors text-white"
+          >
+            <X size={24} />
+          </button>
+          <img
+            src={imageZoom}
+            alt="Zoomed image"
+            className="max-w-[90vw] max-h-[90vh] object-contain rounded-xl shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   );
 }
