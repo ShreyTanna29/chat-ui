@@ -17,6 +17,8 @@ import {
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { useState, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { speakText, TTSController } from "@/services/tts";
@@ -40,7 +42,7 @@ interface MessageMetadata {
   [key: string]: unknown;
 }
 
-// Code block component with copy button
+// Code block component with copy button and syntax highlighting
 function CodeBlock({
   children,
   language,
@@ -49,18 +51,18 @@ function CodeBlock({
   language?: string;
 }) {
   const [copied, setCopied] = useState(false);
+  const codeString = String(children).replace(/\n$/, "");
 
   const handleCopy = async () => {
-    const code = String(children).replace(/\n$/, "");
-    await navigator.clipboard.writeText(code);
+    await navigator.clipboard.writeText(codeString);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
   return (
-    <div className="relative my-4 rounded-xl overflow-hidden bg-[#0d1117] border border-[var(--color-border)]">
+    <div className="relative my-4 rounded-xl overflow-hidden bg-[#282c34] border border-[var(--color-border)]">
       {/* Header with language and copy button */}
-      <div className="flex items-center justify-between px-4 py-2.5 bg-[#161b22] border-b border-[var(--color-border)]">
+      <div className="flex items-center justify-between px-4 py-2.5 bg-[#21252b] border-b border-[var(--color-border)]">
         <span className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider">
           {language || "code"}
         </span>
@@ -88,11 +90,50 @@ function CodeBlock({
           )}
         </button>
       </div>
-      {/* Code content */}
-      <div className="p-4 overflow-x-auto">
-        <code className="text-sm font-mono text-[#e6edf3] leading-relaxed whitespace-pre">
-          {children}
-        </code>
+      {/* Code content with syntax highlighting */}
+      <div className="overflow-x-auto [&_pre]:!bg-transparent [&_code]:!bg-transparent [&_span]:!bg-transparent">
+        <SyntaxHighlighter
+          language={language || "plaintext"}
+          style={oneDark}
+          PreTag={({ children, ...props }) => (
+            <pre
+              {...props}
+              style={{
+                margin: 0,
+                padding: "1rem",
+                background: "transparent",
+                overflow: "visible",
+              }}
+            >
+              {children}
+            </pre>
+          )}
+          customStyle={{
+            margin: 0,
+            padding: 0,
+            background: "transparent",
+            fontSize: "0.875rem",
+            lineHeight: "1.625",
+          }}
+          codeTagProps={{
+            style: {
+              fontFamily:
+                "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+              background: "transparent",
+            },
+          }}
+          showLineNumbers={codeString.split("\n").length > 3}
+          lineNumberStyle={{
+            minWidth: "2.5em",
+            paddingRight: "1em",
+            color: "#636d83",
+            userSelect: "none",
+          }}
+          wrapLines={true}
+          wrapLongLines={true}
+        >
+          {codeString}
+        </SyntaxHighlighter>
       </div>
     </div>
   );
@@ -352,6 +393,8 @@ export function ChatMessage({
                   "prose-a:text-emerald-400 prose-a:no-underline hover:prose-a:underline",
                   "prose-code:before:content-none prose-code:after:content-none",
                   "prose-pre:bg-transparent prose-pre:p-0 prose-pre:m-0 prose-pre:border-0",
+                  "[&_pre]:!m-0 [&_pre]:!p-0 [&_pre]:!bg-transparent",
+                  "[&_.syntax-highlighter]:!bg-transparent",
                   "prose-ul:my-4 prose-ul:list-disc prose-ul:pl-6",
                   "prose-ol:my-4 prose-ol:list-decimal prose-ol:pl-6",
                   "prose-li:my-1",
