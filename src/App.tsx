@@ -504,6 +504,7 @@ export default function App() {
             streamingContent={streamingContent || voiceTranscriptPreview}
             spaceName={activeSpaceName ?? undefined}
             conversationTitle={activeConversation?.title}
+            conversationId={activeConversationId}
             onSend={handleSend}
             isStreaming={isStreaming}
             onStopStream={handleStopStream}

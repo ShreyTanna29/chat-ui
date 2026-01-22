@@ -13,6 +13,7 @@ import {
 import { ChatMessage } from "./ChatMessage";
 import { ChatInput, ChatMode } from "./ChatInput";
 import { VoiceChatUI } from "./VoiceChatUI";
+import { ShareChatModal } from "./ShareChatModal";
 import { cn } from "@/lib/utils";
 
 interface Message {
@@ -30,6 +31,8 @@ interface ChatContainerProps {
   spaceName?: string;
   /** Optional conversation title for context */
   conversationTitle?: string;
+  /** Conversation ID for sharing */
+  conversationId?: string | null;
   onSend: (
     message: string,
     image?: File,
@@ -100,6 +103,7 @@ export function ChatContainer({
   streamingContent = "",
   spaceName,
   conversationTitle,
+  conversationId,
   onSend,
   isStreaming,
   onStopStream,
@@ -111,6 +115,7 @@ export function ChatContainer({
 }: ChatContainerProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [quotedText, setQuotedText] = useState<string | null>(null);
+  const [showShareModal, setShowShareModal] = useState(false);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -391,6 +396,9 @@ ${message}`
                 content={message.content}
                 metadata={message.metadata}
                 onAskErudite={(text) => setQuotedText(text)}
+                onShare={
+                  conversationId ? () => setShowShareModal(true) : undefined
+                }
               />
             ))}
             {isLoading && (
@@ -479,6 +487,16 @@ ${message}`
           onStopStream={onStopStream}
         />
       </div>
+
+      {/* Share Chat Modal */}
+      {conversationId && (
+        <ShareChatModal
+          isOpen={showShareModal}
+          onClose={() => setShowShareModal(false)}
+          conversationId={conversationId}
+          conversationTitle={conversationTitle}
+        />
+      )}
     </div>
   );
 }
