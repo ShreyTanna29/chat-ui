@@ -20,6 +20,7 @@ export interface VoiceChatOptions {
  * - Uses AudioWorklet (off-main-thread) instead of deprecated ScriptProcessorNode
  * - Optimized base64 encoding using chunked String.fromCharCode.apply
  * - Falls back to ScriptProcessorNode for older browsers
+ * - Smooth audio playback with buffering and crossfade
  *
  * It follows VOICE_CHAT_GUIDE.md:
  * - connects with JWT token as query param
@@ -40,6 +41,13 @@ export class VoiceChatRealtimeClient {
   private activeSources: AudioBufferSourceNode[] = [];
   private useWorklet = false;
   private workletReady = false;
+
+  // Audio playback buffering for smooth output
+  private audioQueue: Int16Array[] = [];
+  private isPlaying = false;
+  private gainNode: GainNode | null = null;
+  private readonly BUFFER_THRESHOLD = 3; // Buffer this many chunks before starting playback
+  private readonly OVERLAP_SAMPLES = 64; // Samples to crossfade between chunks
 
   constructor(options: VoiceChatOptions = {}) {
     this.options = options;
@@ -300,14 +308,45 @@ export class VoiceChatRealtimeClient {
     }
   }
 
-  private clearAudioQueue() {
-    this.activeSources.forEach((source) => {
-      try {
-        source.stop();
-      } catch (e) {
-        // Ignore errors if source already stopped
-      }
-    });
+  /**
+   * Gracefully fade out and clear audio instead of abrupt stop.
+   * This prevents the "cut off" sound when interrupting.
+   */
+  private clearAudioQueue(immediate = false) {
+    if (immediate) {
+      // Immediate stop (for disconnect)
+      this.activeSources.forEach((source) => {
+        try {
+          source.stop();
+        } catch (e) {
+          // Ignore errors if source already stopped
+        }
+      });
+    } else if (this.gainNode && this.audioContext) {
+      // Graceful fade out over 100ms
+      const now = this.audioContext.currentTime;
+      this.gainNode.gain.setValueAtTime(this.gainNode.gain.value, now);
+      this.gainNode.gain.linearRampToValueAtTime(0, now + 0.1);
+
+      // Stop sources after fade
+      setTimeout(() => {
+        this.activeSources.forEach((source) => {
+          try {
+            source.stop();
+          } catch (e) {
+            // Ignore
+          }
+        });
+        this.activeSources = [];
+        // Reset gain for next playback
+        if (this.gainNode) {
+          this.gainNode.gain.setValueAtTime(1, this.audioContext!.currentTime);
+        }
+      }, 120);
+    }
+
+    this.audioQueue = [];
+    this.isPlaying = false;
     this.activeSources = [];
     this.nextStartTime = 0;
   }
@@ -334,6 +373,12 @@ export class VoiceChatRealtimeClient {
       this.sourceNode = null;
     }
 
+    // Cleanup gain node
+    if (this.gainNode) {
+      this.gainNode.disconnect();
+      this.gainNode = null;
+    }
+
     // Stop all media tracks
     if (this.mediaStream) {
       this.mediaStream.getTracks().forEach((t) => t.stop());
@@ -345,6 +390,7 @@ export class VoiceChatRealtimeClient {
   private ensureAudioContext(): AudioContext | null {
     if (this.audioContext && this.audioContext.state === "closed") {
       this.audioContext = null;
+      this.gainNode = null;
     }
 
     if (!this.audioContext) {
@@ -365,6 +411,12 @@ export class VoiceChatRealtimeClient {
       });
     }
 
+    // Create gain node for volume control and smooth transitions
+    if (!this.gainNode && this.audioContext) {
+      this.gainNode = this.audioContext.createGain();
+      this.gainNode.connect(this.audioContext.destination);
+    }
+
     return this.audioContext;
   }
 
@@ -377,13 +429,12 @@ export class VoiceChatRealtimeClient {
           break;
         case "input_audio_buffer.speech_started":
           this.emit({ type: "user.speech_started" });
-          // Clear any pending audio playback when user starts speaking to avoid overlap
-          this.clearAudioQueue();
-
-          // Optionally cancel the current response on the server if supported
-          if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-            this.ws.send(JSON.stringify({ type: "response.cancel" }));
+          // DON'T aggressively cancel audio - let it fade out naturally
+          // Only fade out if there's significant audio playing
+          if (this.activeSources.length > 2) {
+            this.clearAudioQueue(false); // Graceful fade
           }
+          // DON'T send response.cancel - let the server handle VAD naturally
           break;
         case "input_audio_buffer.speech_stopped":
           this.emit({ type: "user.speech_stopped" });
@@ -392,7 +443,7 @@ export class VoiceChatRealtimeClient {
           const base64Audio: string | undefined = message.delta;
           if (!base64Audio) break;
           const pcm16 = this.base64ToPCM16Optimized(base64Audio);
-          this.playPCM16(pcm16);
+          this.queueAudio(pcm16);
           break;
         }
         case "response.audio_transcript.delta": {
@@ -410,6 +461,8 @@ export class VoiceChatRealtimeClient {
             });
             this.assistantTranscript = "";
           }
+          // Flush any remaining audio in the buffer
+          this.flushAudioBuffer();
           break;
         }
         case "error":
@@ -430,37 +483,134 @@ export class VoiceChatRealtimeClient {
     this.options.onEvent?.(event);
   }
 
-  private playPCM16(pcm16: Int16Array) {
+  /**
+   * Queue audio chunk and start playback when buffer is sufficient.
+   * This prevents choppy audio from playing tiny chunks immediately.
+   */
+  private queueAudio(pcm16: Int16Array) {
+    this.audioQueue.push(pcm16);
+
+    // Start playing if we have enough buffered or if playback already started
+    if (!this.isPlaying && this.audioQueue.length >= this.BUFFER_THRESHOLD) {
+      this.isPlaying = true;
+      this.processAudioQueue();
+    } else if (this.isPlaying) {
+      // Continue processing if already playing
+      this.processAudioQueue();
+    }
+  }
+
+  /**
+   * Flush remaining audio buffer (called when response is complete).
+   */
+  private flushAudioBuffer() {
+    if (this.audioQueue.length > 0 && !this.isPlaying) {
+      this.isPlaying = true;
+    }
+    this.processAudioQueue();
+  }
+
+  /**
+   * Process queued audio chunks with smooth transitions.
+   */
+  private processAudioQueue() {
+    if (this.audioQueue.length === 0) {
+      return;
+    }
+
+    // Merge multiple small chunks into larger ones for smoother playback
+    const chunksToMerge = Math.min(this.audioQueue.length, 4);
+    const chunks = this.audioQueue.splice(0, chunksToMerge);
+
+    // Calculate total length
+    let totalLength = 0;
+    for (const chunk of chunks) {
+      totalLength += chunk.length;
+    }
+
+    // Merge chunks with crossfade
+    const merged = new Int16Array(totalLength);
+    let offset = 0;
+    for (let i = 0; i < chunks.length; i++) {
+      const chunk = chunks[i];
+
+      if (i > 0 && offset > 0) {
+        // Apply crossfade at chunk boundary
+        const fadeLength = Math.min(this.OVERLAP_SAMPLES, chunk.length, offset);
+        for (let j = 0; j < fadeLength; j++) {
+          const fadeIn = j / fadeLength;
+          const fadeOut = 1 - fadeIn;
+          const prevIdx = offset - fadeLength + j;
+          if (prevIdx >= 0) {
+            merged[prevIdx] = Math.round(
+              merged[prevIdx] * fadeOut + chunk[j] * fadeIn,
+            );
+          }
+        }
+        // Copy rest of chunk (after fade region)
+        merged.set(chunk.subarray(fadeLength), offset);
+        offset += chunk.length - fadeLength;
+      } else {
+        merged.set(chunk, offset);
+        offset += chunk.length;
+      }
+    }
+
+    // Play the merged audio
+    this.playPCM16Buffered(merged.subarray(0, offset));
+
+    // Schedule next batch if there's more
+    if (this.audioQueue.length > 0) {
+      // Use requestAnimationFrame for smoother scheduling
+      requestAnimationFrame(() => this.processAudioQueue());
+    }
+  }
+
+  /**
+   * Play PCM16 audio with proper scheduling for gapless playback.
+   */
+  private playPCM16Buffered(pcm16: Int16Array) {
     const ctx = this.ensureAudioContext();
-    if (!ctx) return;
+    if (!ctx || !this.gainNode) return;
+
     if (ctx.state === "suspended") {
       ctx.resume().catch(() => undefined);
     }
 
+    // Convert PCM16 to Float32
     const float32 = new Float32Array(pcm16.length);
     for (let i = 0; i < pcm16.length; i++) {
-      const s = pcm16[i] / 0x8000;
-      float32[i] = Math.max(-1, Math.min(1, s));
+      float32[i] = pcm16[i] / 32768;
     }
 
+    // Create audio buffer
     const buffer = ctx.createBuffer(1, float32.length, 24000);
     buffer.copyToChannel(float32, 0);
+
+    // Create source
     const source = ctx.createBufferSource();
     source.buffer = buffer;
-    source.connect(ctx.destination);
+    source.connect(this.gainNode);
 
-    // Schedule audio to play seamlessly
-    // If nextStartTime is in the past (underrun), start immediately
-    // Otherwise, schedule for the end of the previous chunk
-    const startTime = Math.max(ctx.currentTime, this.nextStartTime);
+    // Schedule for gapless playback
+    const now = ctx.currentTime;
+    // Add small padding (5ms) to prevent underrun gaps
+    const padding = 0.005;
+    const startTime = Math.max(now + padding, this.nextStartTime);
+
     source.start(startTime);
-
-    // Update next start time
     this.nextStartTime = startTime + buffer.duration;
 
-    // Track active source
+    // Track source for cleanup
     source.onended = () => {
-      this.activeSources = this.activeSources.filter((s) => s !== source);
+      const idx = this.activeSources.indexOf(source);
+      if (idx > -1) {
+        this.activeSources.splice(idx, 1);
+      }
+      // Mark as not playing when all sources complete
+      if (this.activeSources.length === 0 && this.audioQueue.length === 0) {
+        this.isPlaying = false;
+      }
     };
     this.activeSources.push(source);
   }
