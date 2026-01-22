@@ -20,10 +20,61 @@ export function clearTokens(): void {
   localStorage.removeItem("refreshToken");
 }
 
-// Generic fetch wrapper with auth headers
+// Token refresh state management
+let isRefreshing = false;
+let refreshPromise: Promise<boolean> | null = null;
+
+// Attempt to refresh the access token
+async function attemptTokenRefresh(): Promise<boolean> {
+  // If already refreshing, wait for the existing refresh to complete
+  if (isRefreshing && refreshPromise) {
+    return refreshPromise;
+  }
+
+  const refreshToken = getRefreshToken();
+  if (!refreshToken) {
+    return false;
+  }
+
+  isRefreshing = true;
+  refreshPromise = (async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ refreshToken }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success && data.data?.accessToken) {
+        localStorage.setItem("accessToken", data.data.accessToken);
+        return true;
+      }
+
+      // Refresh failed, clear tokens
+      clearTokens();
+      return false;
+    } catch (error) {
+      console.error("Token refresh error:", error);
+      clearTokens();
+      return false;
+    } finally {
+      isRefreshing = false;
+      refreshPromise = null;
+    }
+  })();
+
+  return refreshPromise;
+}
+
+// Generic fetch wrapper with auth headers and automatic token refresh
 export async function apiFetch<T = unknown>(
   endpoint: string,
-  options?: RequestInit
+  options?: RequestInit,
+  _isRetry = false,
 ): Promise<{
   success: boolean;
   data?: T;
@@ -44,6 +95,25 @@ export async function apiFetch<T = unknown>(
 
     const data = await response.json();
 
+    // Handle 401 Unauthorized - attempt token refresh and retry
+    if (
+      response.status === 401 &&
+      !_isRetry &&
+      endpoint !== "/api/auth/refresh"
+    ) {
+      const refreshed = await attemptTokenRefresh();
+      if (refreshed) {
+        // Retry the original request with new token
+        return apiFetch<T>(endpoint, options, true);
+      }
+      // Refresh failed, return the original error
+      return {
+        success: false,
+        message: data.message || "Session expired. Please log in again.",
+        errors: data.errors,
+      };
+    }
+
     if (!response.ok) {
       return {
         success: false,
@@ -62,14 +132,15 @@ export async function apiFetch<T = unknown>(
   }
 }
 
-// Raw fetch for streaming (SSE) endpoints
+// Raw fetch for streaming (SSE) endpoints with automatic token refresh
 export async function apiRawFetch(
   endpoint: string,
-  options?: RequestInit
+  options?: RequestInit,
+  _isRetry = false,
 ): Promise<Response> {
   const token = getAccessToken();
 
-  return fetch(`${API_BASE_URL}${endpoint}`, {
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
     ...options,
     headers: {
       "Content-Type": "application/json",
@@ -77,17 +148,29 @@ export async function apiRawFetch(
       ...options?.headers,
     },
   });
+
+  // Handle 401 Unauthorized - attempt token refresh and retry
+  if (response.status === 401 && !_isRetry) {
+    const refreshed = await attemptTokenRefresh();
+    if (refreshed) {
+      // Retry the original request with new token
+      return apiRawFetch(endpoint, options, true);
+    }
+  }
+
+  return response;
 }
 
-// FormData fetch for file uploads (multipart/form-data)
+// FormData fetch for file uploads (multipart/form-data) with automatic token refresh
 export async function apiFormDataFetch(
   endpoint: string,
   formData: FormData,
-  options?: Omit<RequestInit, "body">
+  options?: Omit<RequestInit, "body">,
+  _isRetry = false,
 ): Promise<Response> {
   const token = getAccessToken();
 
-  return fetch(`${API_BASE_URL}${endpoint}`, {
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
     method: "POST",
     headers: {
       // Don't set Content-Type - browser sets it with boundary for FormData
@@ -96,4 +179,15 @@ export async function apiFormDataFetch(
     body: formData,
     ...options,
   });
+
+  // Handle 401 Unauthorized - attempt token refresh and retry
+  if (response.status === 401 && !_isRetry) {
+    const refreshed = await attemptTokenRefresh();
+    if (refreshed) {
+      // Retry the original request with new token
+      return apiFormDataFetch(endpoint, formData, options, true);
+    }
+  }
+
+  return response;
 }
