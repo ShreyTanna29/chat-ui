@@ -6,7 +6,7 @@ import { SpacesSection } from "@/components/SpacesSection";
 import { DiscoverSection } from "@/components/DiscoverSection";
 import { ChatMode } from "@/components/ChatInput";
 import { useAuth } from "@/contexts/AuthContext";
-import { streamChat } from "@/services/chat";
+import { streamChat, stopStream } from "@/services/chat";
 import {
   getConversations,
   getConversation,
@@ -72,9 +72,26 @@ export default function App() {
   const [voiceTranscriptPreview, setVoiceTranscriptPreview] = useState("");
 
   const abortRef = useRef<(() => void) | null>(null);
+  const streamIdRef = useRef<string | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
 
-  const handleStopStream = useCallback(() => {
+  const handleStopStream = useCallback(async () => {
+    let serverConversationId: string | undefined;
+
+    // First, tell the server to stop the stream
+    if (streamIdRef.current) {
+      try {
+        const result = await stopStream(streamIdRef.current);
+        if (result.success && result.data?.conversationId) {
+          serverConversationId = result.data.conversationId;
+        }
+      } catch (error) {
+        console.error("Failed to stop stream on server:", error);
+      }
+      streamIdRef.current = null;
+    }
+
+    // Then abort the local fetch
     if (abortRef.current) {
       abortRef.current();
       abortRef.current = null;
@@ -89,12 +106,36 @@ export default function App() {
       };
 
       setConversations((prev) =>
+        prev.map((c) => {
+          if (c.id === activeConversationId) {
+            // Update conversation ID if server provided one (fixes "Conversation not found" error)
+            const newId = serverConversationId || c.id;
+            if (serverConversationId && c.id !== serverConversationId) {
+              setActiveConversationId(serverConversationId);
+            }
+            return {
+              ...c,
+              id: newId,
+              messages: [...c.messages, partialMessage],
+            };
+          }
+          return c;
+        }),
+      );
+    } else if (
+      serverConversationId &&
+      activeConversationId &&
+      activeConversationId !== serverConversationId
+    ) {
+      // Even without partial content, update the conversation ID if needed
+      setConversations((prev) =>
         prev.map((c) =>
           c.id === activeConversationId
-            ? { ...c, messages: [...c.messages, partialMessage] }
+            ? { ...c, id: serverConversationId! }
             : c,
         ),
       );
+      setActiveConversationId(serverConversationId);
     }
 
     setIsStreaming(false);
@@ -365,6 +406,9 @@ export default function App() {
           researchMode: mode === "research" ? true : undefined,
         },
         {
+          onStreamId: (streamId) => {
+            streamIdRef.current = streamId;
+          },
           onChunk: (chunk) => {
             setStreamingContent((prev) => prev + chunk);
           },

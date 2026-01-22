@@ -18,12 +18,13 @@ export interface StreamCallbacks {
   onChunk: (content: string) => void;
   onDone: (fullResponse: string, conversationId?: string) => void;
   onError: (error: string) => void;
+  onStreamId?: (streamId: string) => void;
 }
 
 // Stream a chat response using Server-Sent Events
 export async function streamChat(
   options: StreamChatOptions,
-  callbacks: StreamCallbacks
+  callbacks: StreamCallbacks,
 ): Promise<{ abort: () => void }> {
   const controller = new AbortController();
 
@@ -141,8 +142,11 @@ export async function streamChat(
 
                 switch (data.type) {
                   case "connected":
-                    // Stream started - may include conversationId
+                    // Stream started - may include conversationId and streamId
                     console.log("[Chat] Stream connected:", data);
+                    if (data.streamId && callbacks.onStreamId) {
+                      callbacks.onStreamId(data.streamId);
+                    }
                     break;
 
                   case "chunk":
@@ -159,7 +163,7 @@ export async function streamChat(
                     }
                     callbacks.onDone(
                       data.full_response || fullResponse,
-                      conversationId
+                      conversationId,
                     );
                     return;
 
@@ -189,7 +193,7 @@ export async function streamChat(
           return;
         }
         callbacks.onError(
-          (error as Error).message || "Stream processing error"
+          (error as Error).message || "Stream processing error",
         );
       }
     };
@@ -199,7 +203,7 @@ export async function streamChat(
     return { abort: () => controller.abort() };
   } catch (error) {
     callbacks.onError(
-      (error as Error).message || "Failed to connect to chat service"
+      (error as Error).message || "Failed to connect to chat service",
     );
     return { abort: () => controller.abort() };
   }
@@ -235,6 +239,30 @@ export async function simpleChat(options: StreamChatOptions): Promise<{
     }
 
     return { success: false, message: data.message };
+  } catch (error) {
+    return { success: false, message: (error as Error).message };
+  }
+}
+
+// Stop an ongoing chat stream on the server
+export async function stopStream(streamId: string): Promise<{
+  success: boolean;
+  data?: {
+    streamId: string;
+    conversationId: string;
+    partialResponseLength: number;
+    stoppedAt: string;
+  };
+  message?: string;
+}> {
+  try {
+    const response = await apiRawFetch("/api/chat/stop", {
+      method: "POST",
+      body: JSON.stringify({ streamId }),
+    });
+
+    const data = await response.json();
+    return data;
   } catch (error) {
     return { success: false, message: (error as Error).message };
   }
