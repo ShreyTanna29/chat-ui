@@ -14,7 +14,12 @@ export interface VoiceChatOptions {
 }
 
 /**
- * Lightweight client for the /api/chat/voice-realtime WebSocket endpoint.
+ * Optimized client for the /api/chat/voice-realtime WebSocket endpoint.
+ *
+ * Performance optimizations:
+ * - Uses AudioWorklet (off-main-thread) instead of deprecated ScriptProcessorNode
+ * - Optimized base64 encoding using chunked String.fromCharCode.apply
+ * - Falls back to ScriptProcessorNode for older browsers
  *
  * It follows VOICE_CHAT_GUIDE.md:
  * - connects with JWT token as query param
@@ -25,12 +30,16 @@ export class VoiceChatRealtimeClient {
   private ws: WebSocket | null = null;
   private audioContext: AudioContext | null = null;
   private mediaStream: MediaStream | null = null;
-  private processor: ScriptProcessorNode | null = null;
+  private workletNode: AudioWorkletNode | null = null;
+  private legacyProcessor: ScriptProcessorNode | null = null;
+  private sourceNode: MediaStreamAudioSourceNode | null = null;
   private isRecording = false;
   private options: VoiceChatOptions;
   private assistantTranscript = "";
   private nextStartTime = 0;
   private activeSources: AudioBufferSourceNode[] = [];
+  private useWorklet = false;
+  private workletReady = false;
 
   constructor(options: VoiceChatOptions = {}) {
     this.options = options;
@@ -89,6 +98,35 @@ export class VoiceChatRealtimeClient {
     });
   }
 
+  /**
+   * Initialize AudioWorklet if supported, otherwise fall back to ScriptProcessorNode.
+   */
+  private async initAudioWorklet(ctx: AudioContext): Promise<boolean> {
+    if (this.workletReady) return true;
+
+    // Check if AudioWorklet is supported
+    if (!ctx.audioWorklet) {
+      console.log(
+        "AudioWorklet not supported, using legacy ScriptProcessorNode",
+      );
+      return false;
+    }
+
+    try {
+      await ctx.audioWorklet.addModule("/audio-processor.js");
+      this.workletReady = true;
+      this.useWorklet = true;
+      console.log("AudioWorklet initialized successfully");
+      return true;
+    } catch (error) {
+      console.warn(
+        "Failed to load AudioWorklet, falling back to ScriptProcessorNode:",
+        error,
+      );
+      return false;
+    }
+  }
+
   async startRecording() {
     if (!this.connected) {
       await this.connect();
@@ -107,37 +145,75 @@ export class VoiceChatRealtimeClient {
         return;
       }
 
+      // Try to use AudioWorklet, fall back to ScriptProcessorNode
+      await this.initAudioWorklet(ctx);
+
       this.mediaStream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
         video: false,
       });
 
-      const source = ctx.createMediaStreamSource(this.mediaStream);
-      // Increase buffer size to 4096 to reduce WebSocket message frequency and overhead
-      this.processor = ctx.createScriptProcessor(4096, 1, 1);
+      this.sourceNode = ctx.createMediaStreamSource(this.mediaStream);
 
-      this.processor.onaudioprocess = (event) => {
-        if (
-          !this.isRecording ||
-          !this.ws ||
-          this.ws.readyState !== WebSocket.OPEN
-        )
-          return;
+      if (this.useWorklet && this.workletReady) {
+        // Use modern AudioWorklet (off-main-thread processing)
+        this.workletNode = new AudioWorkletNode(ctx, "voice-chat-processor");
 
-        const input = event.inputBuffer.getChannelData(0);
-        const pcm16 = this.float32ToPCM16(input);
-        const base64 = this.toBase64(pcm16);
+        this.workletNode.port.onmessage = (event) => {
+          if (
+            !this.isRecording ||
+            !this.ws ||
+            this.ws.readyState !== WebSocket.OPEN
+          )
+            return;
 
-        this.ws.send(
-          JSON.stringify({
-            type: "input_audio_buffer.append",
-            audio: base64,
-          }),
-        );
-      };
+          if (event.data.type === "audio") {
+            const pcm16 = event.data.pcm16 as Int16Array;
+            const base64 = this.toBase64Optimized(pcm16);
 
-      source.connect(this.processor);
-      this.processor.connect(ctx.destination);
+            this.ws.send(
+              JSON.stringify({
+                type: "input_audio_buffer.append",
+                audio: base64,
+              }),
+            );
+          }
+        };
+
+        this.sourceNode.connect(this.workletNode);
+        // AudioWorklet doesn't need to connect to destination for capture-only
+      } else {
+        // Fallback to legacy ScriptProcessorNode
+        // Use smaller buffer (2048) for lower latency since we optimized base64
+        this.legacyProcessor = ctx.createScriptProcessor(2048, 1, 1);
+
+        this.legacyProcessor.onaudioprocess = (event) => {
+          if (
+            !this.isRecording ||
+            !this.ws ||
+            this.ws.readyState !== WebSocket.OPEN
+          )
+            return;
+
+          const input = event.inputBuffer.getChannelData(0);
+          const pcm16 = this.float32ToPCM16(input);
+          const base64 = this.toBase64Optimized(pcm16);
+
+          this.ws.send(
+            JSON.stringify({
+              type: "input_audio_buffer.append",
+              audio: base64,
+            }),
+          );
+        };
+
+        this.sourceNode.connect(this.legacyProcessor);
+        this.legacyProcessor.connect(ctx.destination);
+      }
 
       this.isRecording = true;
     } catch (error: unknown) {
@@ -237,12 +313,28 @@ export class VoiceChatRealtimeClient {
   }
 
   private cleanupAudio() {
-    if (this.processor) {
-      this.processor.disconnect();
-      this.processor.onaudioprocess =
-        null as unknown as ScriptProcessorNode["onaudioprocess"];
-      this.processor = null;
+    // Cleanup AudioWorklet
+    if (this.workletNode) {
+      this.workletNode.disconnect();
+      this.workletNode.port.onmessage = null;
+      this.workletNode = null;
     }
+
+    // Cleanup legacy ScriptProcessorNode
+    if (this.legacyProcessor) {
+      this.legacyProcessor.disconnect();
+      this.legacyProcessor.onaudioprocess =
+        null as unknown as ScriptProcessorNode["onaudioprocess"];
+      this.legacyProcessor = null;
+    }
+
+    // Cleanup source node
+    if (this.sourceNode) {
+      this.sourceNode.disconnect();
+      this.sourceNode = null;
+    }
+
+    // Stop all media tracks
     if (this.mediaStream) {
       this.mediaStream.getTracks().forEach((t) => t.stop());
       this.mediaStream = null;
@@ -299,7 +391,7 @@ export class VoiceChatRealtimeClient {
         case "response.audio.delta": {
           const base64Audio: string | undefined = message.delta;
           if (!base64Audio) break;
-          const pcm16 = this.base64ToPCM16(base64Audio);
+          const pcm16 = this.base64ToPCM16Optimized(base64Audio);
           this.playPCM16(pcm16);
           break;
         }
@@ -382,23 +474,42 @@ export class VoiceChatRealtimeClient {
     return pcm16;
   }
 
-  private toBase64(int16Array: Int16Array): string {
-    let binary = "";
+  /**
+   * Optimized base64 encoding using chunked String.fromCharCode.apply.
+   * This avoids the slow string concatenation in a loop.
+   */
+  private toBase64Optimized(int16Array: Int16Array): string {
     const bytes = new Uint8Array(int16Array.buffer);
-    const len = bytes.byteLength;
-    for (let i = 0; i < len; i++) {
-      binary += String.fromCharCode(bytes[i]);
+    const chunkSize = 0x8000; // 32KB chunks to avoid call stack limits
+    const chunks: string[] = [];
+
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+      const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length));
+      chunks.push(
+        String.fromCharCode.apply(null, chunk as unknown as number[]),
+      );
     }
-    return btoa(binary);
+
+    return btoa(chunks.join(""));
   }
 
-  private base64ToPCM16(base64: string): Int16Array {
+  /**
+   * Optimized base64 decoding using chunked processing.
+   */
+  private base64ToPCM16Optimized(base64: string): Int16Array {
     const binary = atob(base64);
     const len = binary.length;
     const bytes = new Uint8Array(len);
-    for (let i = 0; i < len; i++) {
-      bytes[i] = binary.charCodeAt(i);
+
+    // Process in chunks for better performance
+    const chunkSize = 0x8000;
+    for (let i = 0; i < len; i += chunkSize) {
+      const end = Math.min(i + chunkSize, len);
+      for (let j = i; j < end; j++) {
+        bytes[j] = binary.charCodeAt(j);
+      }
     }
+
     return new Int16Array(bytes.buffer);
   }
 }
