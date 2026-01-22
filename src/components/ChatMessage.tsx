@@ -17,7 +17,6 @@ import {
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import hljs from "highlight.js";
 import "highlight.js/styles/atom-one-dark.css";
 import { useState, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
@@ -223,10 +222,15 @@ function CodeBlock({
 
   useEffect(() => {
     if (codeRef.current) {
-      // Clear any previous highlighting attributes
-      codeRef.current.removeAttribute("data-highlighted");
-      // Apply highlighting
-      hljs.highlightElement(codeRef.current);
+      // Dynamic import of highlight.js for code splitting
+      import("highlight.js").then((hljs) => {
+        if (codeRef.current) {
+          // Clear any previous highlighting attributes
+          codeRef.current.removeAttribute("data-highlighted");
+          // Apply highlighting
+          hljs.default.highlightElement(codeRef.current);
+        }
+      });
     }
   }, [codeString, normalizedLang]);
 
