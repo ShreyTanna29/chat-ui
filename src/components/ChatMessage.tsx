@@ -314,6 +314,7 @@ interface ChatMessageProps {
   metadata?: MessageMetadata;
   onAskErudite?: (text: string) => void;
   onShare?: () => void;
+  onRegenerate?: () => void;
 }
 
 // Heuristic function to check if text looks like code
@@ -413,6 +414,7 @@ export function ChatMessage({
   metadata,
   onAskErudite,
   onShare,
+  onRegenerate,
 }: ChatMessageProps) {
   const [copied, setCopied] = useState(false);
   const [feedback, setFeedback] = useState<"up" | "down" | null>(null);
@@ -934,6 +936,7 @@ export function ChatMessage({
                   </button>
 
                   <button
+                    onClick={onRegenerate}
                     className={cn(
                       "p-2 rounded-xl transition-all border border-[var(--color-border)]",
                       "text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]",

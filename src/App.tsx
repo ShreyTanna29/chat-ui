@@ -428,6 +428,15 @@ export default function App() {
     [activeConversationId, activeSpaceId],
   );
 
+  const handleRegenerate = useCallback(
+    (prompt: string) => {
+      // Simply resend the prompt to generate a new response
+      // This preserves the chat history and appends the new interaction
+      handleSend(prompt);
+    },
+    [handleSend],
+  );
+
   // Show loading state while checking auth
   if (authLoading) {
     return (
@@ -506,6 +515,7 @@ export default function App() {
             conversationTitle={activeConversation?.title}
             conversationId={activeConversationId}
             onSend={handleSend}
+            onRegenerate={handleRegenerate}
             isStreaming={isStreaming}
             onStopStream={handleStopStream}
             onToggleVoice={handleToggleVoice}

@@ -39,6 +39,8 @@ interface ChatContainerProps {
     document?: File,
     mode?: ChatMode,
   ) => void;
+  /** Regenerate a response by resending the given prompt */
+  onRegenerate?: (prompt: string) => void;
   // Stream control
   isStreaming?: boolean;
   onStopStream?: () => void;
@@ -105,6 +107,7 @@ export function ChatContainer({
   conversationTitle,
   conversationId,
   onSend,
+  onRegenerate,
   isStreaming,
   onStopStream,
   onToggleVoice,
@@ -389,18 +392,32 @@ ${message}`
         ) : (
           /* Messages list */
           <div className="pb-8 pt-4">
-            {messages.map((message) => (
-              <ChatMessage
-                key={message.id}
-                role={message.role}
-                content={message.content}
-                metadata={message.metadata}
-                onAskErudite={(text) => setQuotedText(text)}
-                onShare={
-                  conversationId ? () => setShowShareModal(true) : undefined
-                }
-              />
-            ))}
+            {messages.map((message, index) => {
+              // Find the preceding user message to use as prompt for regeneration
+              const prevMessage = index > 0 ? messages[index - 1] : null;
+              const promptToRegenerate =
+                prevMessage?.role === "user" ? prevMessage.content : null;
+
+              return (
+                <ChatMessage
+                  key={message.id}
+                  role={message.role}
+                  content={message.content}
+                  metadata={message.metadata}
+                  onAskErudite={(text) => setQuotedText(text)}
+                  onShare={
+                    conversationId ? () => setShowShareModal(true) : undefined
+                  }
+                  onRegenerate={
+                    message.role === "assistant" &&
+                    promptToRegenerate &&
+                    onRegenerate
+                      ? () => onRegenerate(promptToRegenerate)
+                      : undefined
+                  }
+                />
+              );
+            })}
             {isLoading && (
               <ChatMessage
                 role="assistant"
