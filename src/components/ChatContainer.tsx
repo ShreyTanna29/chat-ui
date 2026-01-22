@@ -174,7 +174,7 @@ ${message}`
 
       {/* Context header: show space and conversation info if available */}
       {(spaceName || conversationTitle) && (
-        <div className="relative z-10 w-full max-w-3xl mx-auto px-4 pt-4">
+        <div className="relative z-10 w-full max-w-5xl mx-auto px-4 pt-4">
           <div className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-2xl bg-[var(--color-surface)]/90 border border-[var(--color-border)] shadow-md">
             <div className="flex items-center gap-2 overflow-hidden">
               {spaceName && (
@@ -250,7 +250,7 @@ ${message}`
             </p>
 
             {/* Premium redesigned suggestion cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 w-full max-w-4xl mb-10">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 w-full max-w-5xl mb-10">
               {suggestions.map((suggestion, index) => (
                 <button
                   key={index}
@@ -432,7 +432,7 @@ ${message}`
       {/* Voice chat control (outside input bar) */}
       {onToggleVoice && (
         <div className="w-full flex justify-center mb-1">
-          <div className="w-full max-w-3xl mx-auto flex items-center justify-end px-4 gap-2">
+          <div className="w-full max-w-5xl mx-auto flex items-center justify-end px-4 gap-2">
             <button
               type="button"
               onClick={onToggleVoice}
@@ -465,7 +465,7 @@ ${message}`
       {/* Minimal voice chat status panel */}
       {(isVoiceRecording || isVoiceConnecting || voiceStatus) && (
         <div className="w-full flex justify-center mb-2">
-          <div className="w-full max-w-3xl mx-auto px-4">
+          <div className="w-full max-w-5xl mx-auto px-4">
             <div className="flex items-center gap-2 px-3 py-2 rounded-2xl bg-[var(--color-surface)]/90 border border-[var(--color-border)] shadow-sm">
               <div
                 className={cn(

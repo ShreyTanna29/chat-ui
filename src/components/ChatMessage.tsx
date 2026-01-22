@@ -576,7 +576,7 @@ export function ChatMessage({
 
       <div
         className={cn(
-          "max-w-3xl mx-auto px-4 sm:px-6 flex gap-4",
+          "max-w-5xl mx-auto px-4 sm:px-6 flex gap-4",
           isUser && "flex-row-reverse",
         )}
       >

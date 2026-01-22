@@ -21,7 +21,7 @@ interface ChatInputProps {
     image?: File,
     document?: File,
     quotedText?: string,
-    mode?: ChatMode
+    mode?: ChatMode,
   ) => void;
   disabled?: boolean;
   placeholder?: string;
@@ -125,7 +125,7 @@ export function ChatInput({
         imageFile || undefined,
         documentFile || undefined,
         quotedText || undefined,
-        mode
+        mode,
       );
       setValue("");
       setImageFile(null);
@@ -152,7 +152,7 @@ export function ChatInput({
   const maxChars = 4000;
 
   return (
-    <div className="w-full max-w-3xl mx-auto">
+    <div className="w-full max-w-5xl mx-auto">
       {/* Quoted text preview - like ChatGPT */}
       {quotedText && (
         <div className="mb-2 flex items-start gap-2 px-4 py-3 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl animate-in slide-in-from-bottom-2 duration-200">
@@ -182,7 +182,7 @@ export function ChatInput({
           "border shadow-xl",
           isFocused
             ? "border-emerald-500/50 shadow-emerald-500/10"
-            : "border-[var(--color-border)] hover:border-[var(--color-border-hover)] shadow-black/20"
+            : "border-[var(--color-border)] hover:border-[var(--color-border-hover)] shadow-black/20",
         )}
       >
         {/* File preview section */}
@@ -254,7 +254,7 @@ export function ChatInput({
                   "flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all",
                   "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]",
                   "hover:bg-[var(--color-surface-active)]",
-                  "active:scale-95 text-sm font-medium"
+                  "active:scale-95 text-sm font-medium",
                 )}
                 title="Select mode"
               >
@@ -264,7 +264,7 @@ export function ChatInput({
                   size={14}
                   className={cn(
                     "transition-transform",
-                    showModeDropdown && "rotate-180"
+                    showModeDropdown && "rotate-180",
                   )}
                 />
               </button>
@@ -284,7 +284,7 @@ export function ChatInput({
                         "w-full flex items-center gap-3 px-4 py-3 text-left transition-colors",
                         m.id === mode
                           ? "bg-emerald-500/10 text-emerald-400"
-                          : "text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-active)] hover:text-[var(--color-text-primary)]"
+                          : "text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-active)] hover:text-[var(--color-text-primary)]",
                       )}
                     >
                       <m.icon size={18} />
@@ -309,7 +309,7 @@ export function ChatInput({
                   ? "text-emerald-400 bg-emerald-500/10"
                   : "text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]",
                 "hover:bg-[var(--color-surface-active)]",
-                "active:scale-95"
+                "active:scale-95",
               )}
               title="Attach file"
             >
@@ -336,7 +336,7 @@ export function ChatInput({
               "flex-1 resize-none bg-transparent text-[var(--color-text-primary)]",
               "placeholder:text-[var(--color-text-muted)]",
               "focus:outline-none focus-visible:outline-none text-lg leading-relaxed max-h-[200px] py-4",
-              disabled && "opacity-50 cursor-not-allowed"
+              disabled && "opacity-50 cursor-not-allowed",
             )}
           />
 
@@ -348,7 +348,7 @@ export function ChatInput({
                 onClick={onStopStream}
                 className={cn(
                   "p-2 mr-2 rounded-xl transition-all duration-300 relative overflow-hidden group",
-                  "bg-[var(--color-surface-active)] hover:bg-red-500/20 text-[var(--color-text-secondary)] hover:text-red-400 active:scale-95"
+                  "bg-[var(--color-surface-active)] hover:bg-red-500/20 text-[var(--color-text-secondary)] hover:text-red-400 active:scale-95",
                 )}
                 title="Stop generating"
               >
@@ -362,7 +362,7 @@ export function ChatInput({
                   "p-2 mr-2 rounded-xl transition-all duration-300 relative overflow-hidden group",
                   canSend
                     ? "bg-emerald-600 hover:bg-emerald-500 text-white shadow-md active:scale-95"
-                    : "bg-[var(--color-surface-active)] text-[var(--color-text-dim)] cursor-not-allowed"
+                    : "bg-[var(--color-surface-active)] text-[var(--color-text-dim)] cursor-not-allowed",
                 )}
               >
                 <Send
@@ -370,7 +370,7 @@ export function ChatInput({
                   className={cn(
                     "relative z-10 transition-all",
                     canSend &&
-                      "group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+                      "group-hover:translate-x-0.5 group-hover:-translate-y-0.5",
                   )}
                 />
               </button>
@@ -387,8 +387,8 @@ export function ChatInput({
                 charCount >= maxChars
                   ? "text-red-400"
                   : charCount > 3800
-                  ? "text-amber-400"
-                  : "text-[var(--color-text-muted)]"
+                    ? "text-amber-400"
+                    : "text-[var(--color-text-muted)]",
               )}
             >
               {charCount} / {maxChars}
