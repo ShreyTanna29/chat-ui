@@ -58,6 +58,12 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [streamingContent, setStreamingContent] = useState("");
+  const [streamingImages, setStreamingImages] = useState<
+    Array<{ url: string; revised_prompt?: string }>
+  >([]);
+  const [streamingProgress, setStreamingProgress] = useState<string | null>(
+    null
+  );
   const [isSpacesView, setIsSpacesView] = useState(false);
   const [isDiscoverView, setIsDiscoverView] = useState(false);
   const [activeSpaceId, setActiveSpaceId] = useState<string | null>(null);
@@ -120,7 +126,7 @@ export default function App() {
             };
           }
           return c;
-        }),
+        })
       );
     } else if (
       serverConversationId &&
@@ -132,19 +138,21 @@ export default function App() {
         prev.map((c) =>
           c.id === activeConversationId
             ? { ...c, id: serverConversationId! }
-            : c,
-        ),
+            : c
+        )
       );
       setActiveConversationId(serverConversationId);
     }
 
     setIsStreaming(false);
     setStreamingContent("");
+    setStreamingImages([]);
+    setStreamingProgress(null);
     setIsLoading(false);
   }, [streamingContent, activeConversationId]);
 
   const activeConversation = conversations.find(
-    (c) => c.id === activeConversationId,
+    (c) => c.id === activeConversationId
   );
   const messages = activeConversation?.messages || [];
 
@@ -166,7 +174,7 @@ export default function App() {
                 role: msg.role,
                 content: msg.content,
               })) || [],
-          }),
+          })
         );
         setConversations(formattedConversations);
       }
@@ -191,8 +199,8 @@ export default function App() {
                   metadata: msg.metadata,
                 })),
               }
-            : c,
-        ),
+            : c
+        )
       );
     }
   };
@@ -204,6 +212,8 @@ export default function App() {
       abortRef.current = null;
     }
     setStreamingContent("");
+    setStreamingImages([]);
+    setStreamingProgress(null);
     setActiveConversationId(null);
     setActiveSpaceId(null);
     setActiveSpaceName(null);
@@ -220,6 +230,8 @@ export default function App() {
         abortRef.current = null;
       }
       setStreamingContent("");
+      setStreamingImages([]);
+      setStreamingProgress(null);
       setActiveConversationId(id);
 
       if (spaceId) {
@@ -235,7 +247,7 @@ export default function App() {
       // Always load full conversation since the list API only returns partial messages
       await loadFullConversation(id);
     },
-    [],
+    []
   );
 
   const handleDeleteConversation = useCallback(
@@ -248,7 +260,7 @@ export default function App() {
         }
       }
     },
-    [activeConversationId],
+    [activeConversationId]
   );
 
   const handleNewChatInSpace = useCallback(
@@ -258,13 +270,15 @@ export default function App() {
         abortRef.current = null;
       }
       setStreamingContent("");
+      setStreamingImages([]);
+      setStreamingProgress(null);
       setActiveConversationId(null);
       setActiveSpaceId(spaceId);
       setActiveSpaceName(spaceName);
       setIsSpacesView(false);
       setSidebarOpen(false);
     },
-    [],
+    []
   );
 
   // Voice chat lifecycle & mapping to messages
@@ -380,8 +394,8 @@ export default function App() {
           prev.map((c) =>
             c.id === currentConversationId
               ? { ...c, messages: [...c.messages, userMessage] }
-              : c,
-          ),
+              : c
+          )
         );
       }
 
@@ -389,6 +403,8 @@ export default function App() {
       setIsLoading(true);
       setIsStreaming(true);
       setStreamingContent("");
+      setStreamingImages([]);
+      setStreamingProgress(null);
 
       // For new conversations, don't send conversationId - let server create one
       // For existing conversations, send the actual ID (which should be the server's ID)
@@ -412,11 +428,25 @@ export default function App() {
           onChunk: (chunk) => {
             setStreamingContent((prev) => prev + chunk);
           },
-          onDone: (fullResponse, serverConversationId) => {
+          onImage: (image) => {
+            setStreamingImages((prev) => [...prev, { url: image }]);
+            setStreamingProgress(null); // Clear progress when image arrives
+          },
+          onProgress: (message) => {
+            setStreamingProgress(message);
+          },
+          onDone: (fullResponse, serverConversationId, generatedImages) => {
             const assistantMessage: Message = {
               id: generateId(),
               role: "assistant",
               content: fullResponse,
+              metadata:
+                generatedImages && generatedImages.length > 0
+                  ? {
+                      generatedImages: generatedImages,
+                      hasImage: true,
+                    }
+                  : undefined,
             };
 
             setConversations((prev) =>
@@ -434,7 +464,7 @@ export default function App() {
                   };
                 }
                 return c;
-              }),
+              })
             );
 
             setIsLoading(false);
@@ -455,8 +485,8 @@ export default function App() {
               prev.map((c) =>
                 c.id === currentConversationId
                   ? { ...c, messages: [...c.messages, errorMessage] }
-                  : c,
-              ),
+                  : c
+              )
             );
 
             setIsLoading(false);
@@ -464,12 +494,12 @@ export default function App() {
             setStreamingContent("");
             abortRef.current = null;
           },
-        },
+        }
       );
 
       abortRef.current = abort;
     },
-    [activeConversationId, activeSpaceId],
+    [activeConversationId, activeSpaceId]
   );
 
   const handleRegenerate = useCallback(
@@ -478,7 +508,7 @@ export default function App() {
       // This preserves the chat history and appends the new interaction
       handleSend(prompt);
     },
-    [handleSend],
+    [handleSend]
   );
 
   // Show loading state while checking auth
@@ -555,6 +585,12 @@ export default function App() {
             messages={messages}
             isLoading={isLoading}
             streamingContent={streamingContent || voiceTranscriptPreview}
+            streamingImage={
+              streamingImages.length > 0
+                ? streamingImages[streamingImages.length - 1].url
+                : null
+            }
+            streamingProgress={streamingProgress}
             spaceName={activeSpaceName ?? undefined}
             conversationTitle={activeConversation?.title}
             conversationId={activeConversationId}

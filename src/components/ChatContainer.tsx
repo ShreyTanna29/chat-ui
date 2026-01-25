@@ -27,6 +27,8 @@ interface ChatContainerProps {
   messages: Message[];
   isLoading: boolean;
   streamingContent?: string;
+  streamingImage?: string | null;
+  streamingProgress?: string | null;
   /** Optional space name if this chat is associated with a space */
   spaceName?: string;
   /** Optional conversation title for context */
@@ -103,6 +105,8 @@ export function ChatContainer({
   messages,
   isLoading,
   streamingContent = "",
+  streamingImage,
+  streamingProgress,
   spaceName,
   conversationTitle,
   conversationId,
@@ -422,7 +426,9 @@ ${message}`
               <ChatMessage
                 role="assistant"
                 content={streamingContent}
-                isLoading={!streamingContent}
+                isLoading={!streamingContent && !streamingImage}
+                loadingMessage={streamingProgress || undefined}
+                streamingImage={streamingImage}
               />
             )}
           </div>

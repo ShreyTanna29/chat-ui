@@ -258,7 +258,7 @@ function CodeBlock({
             "border border-transparent",
             copied
               ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/30"
-              : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface)]",
+              : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface)]"
           )}
           title="Copy code"
         >
@@ -298,7 +298,7 @@ function CodeBlock({
               ref={codeRef}
               className={cn(
                 "hljs font-mono text-sm leading-relaxed bg-transparent",
-                normalizedLang && `language-${normalizedLang}`,
+                normalizedLang && `language-${normalizedLang}`
               )}
               style={{ background: "transparent" }}
             >
@@ -316,6 +316,8 @@ interface ChatMessageProps {
   content: string;
   isLoading?: boolean;
   metadata?: MessageMetadata;
+  loadingMessage?: string;
+  streamingImage?: string | null;
   onAskErudite?: (text: string) => void;
   onShare?: () => void;
   onRegenerate?: () => void;
@@ -383,7 +385,7 @@ function isCodeLike(text: string): boolean {
 
   // 3. Check for indentation (lines starting with spaces)
   const indentedLines = lines.filter(
-    (l) => l.startsWith("  ") || l.startsWith("\t"),
+    (l) => l.startsWith("  ") || l.startsWith("\t")
   ).length;
 
   // Scoring system
@@ -415,6 +417,8 @@ export function ChatMessage({
   role,
   content,
   isLoading,
+  loadingMessage,
+  streamingImage,
   metadata,
   onAskErudite,
   onShare,
@@ -487,7 +491,7 @@ export function ChatMessage({
           setIsLoadingTTS(false);
           ttsControllerRef.current = null;
         },
-      },
+      }
     );
     ttsControllerRef.current = controller;
   };
@@ -550,7 +554,7 @@ export function ChatMessage({
         "w-full py-8 animate-slide-up relative",
         isUser
           ? "bg-transparent"
-          : "bg-gradient-to-b from-[var(--color-surface)]/30 to-transparent border-t border-[var(--color-border)]/50",
+          : "bg-gradient-to-b from-[var(--color-surface)]/30 to-transparent border-t border-[var(--color-border)]/50"
       )}
     >
       {/* Ask Erudite Tooltip */}
@@ -577,7 +581,7 @@ export function ChatMessage({
       <div
         className={cn(
           "max-w-5xl mx-auto px-4 sm:px-6 flex gap-4",
-          isUser && "flex-row-reverse",
+          isUser && "flex-row-reverse"
         )}
       >
         {/* Avatar */}
@@ -586,7 +590,7 @@ export function ChatMessage({
             "flex-shrink-0 w-10 h-10 rounded-2xl flex items-center justify-center transition-all duration-300 shadow-lg",
             isUser
               ? "bg-gradient-to-br from-gray-700 to-gray-800 border border-[var(--color-border)] group-hover:shadow-gray-500/20"
-              : "bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-emerald-500/30 animate-float",
+              : "bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-emerald-500/30 animate-float"
           )}
         >
           {isUser ? (
@@ -607,7 +611,7 @@ export function ChatMessage({
           <div
             className={cn(
               "flex items-center gap-2 mb-2.5",
-              isUser && "justify-end",
+              isUser && "justify-end"
             )}
           >
             <span className="font-semibold text-sm text-[var(--color-text-primary)]">
@@ -641,11 +645,33 @@ export function ChatMessage({
                 />
               </div>
               <span className="text-sm text-[var(--color-text-muted)] font-medium">
-                Thinking...
+                {loadingMessage || "Thinking..."}
               </span>
             </div>
           ) : (
             <>
+              {/* Streaming Image Display */}
+              {streamingImage && (
+                <div className="mb-4 relative group/genimg">
+                  <button
+                    onClick={() => setImageZoom(streamingImage)}
+                    className="relative block rounded-xl overflow-hidden border border-[var(--color-border)] hover:border-emerald-500/40 transition-all shadow-lg hover:shadow-emerald-500/20"
+                  >
+                    <img
+                      src={streamingImage}
+                      alt="Generating..."
+                      className="max-w-[280px] max-h-[280px] object-cover"
+                    />
+                    <div className="absolute inset-0 bg-black/0 group-hover/genimg:bg-black/20 transition-all flex items-center justify-center opacity-0 group-hover/genimg:opacity-100">
+                      <ImageIcon
+                        size={24}
+                        className="text-white drop-shadow-md"
+                      />
+                    </div>
+                  </button>
+                </div>
+              )}
+
               <div
                 ref={contentRef}
                 onMouseUp={handleMouseUp}
@@ -669,7 +695,7 @@ export function ChatMessage({
                   "prose-table:w-full prose-table:my-6 prose-table:border-collapse",
                   "prose-th:text-left prose-th:p-2 prose-th:border-b prose-th:border-[var(--color-border)] prose-th:text-[var(--color-text-primary)]",
                   "prose-td:p-2 prose-td:border-b prose-td:border-[var(--color-border)] prose-td:text-[var(--color-text-secondary)]",
-                  isUser && "text-right prose-p:text-right",
+                  isUser && "text-right prose-p:text-right"
                 )}
               >
                 <ReactMarkdown
@@ -690,14 +716,7 @@ export function ChatMessage({
                       // Just return children - our code component will handle rendering
                       return <>{children}</>;
                     },
-                    code: ({
-                      node,
-                      className,
-                      children,
-                      style,
-                      ref,
-                      ...props
-                    }) => {
+                    code: ({ node, className, children, ...props }) => {
                       // Check if this is a code block by looking at parent node
                       // In markdown, code blocks are wrapped in <pre><code>, while inline code is just <code>
                       const isInline =
@@ -745,7 +764,7 @@ export function ChatMessage({
                 <div
                   className={cn(
                     "mt-4 flex flex-wrap gap-3",
-                    isUser && "justify-end",
+                    isUser && "justify-end"
                   )}
                 >
                   {/* Image attachment */}
@@ -781,7 +800,7 @@ export function ChatMessage({
                         "flex items-center gap-3 px-4 py-3 rounded-xl",
                         "bg-[var(--color-surface)] border border-[var(--color-border)]",
                         "hover:border-emerald-500/40 hover:bg-[var(--color-surface-hover)]",
-                        "transition-all shadow-lg hover:shadow-emerald-500/20",
+                        "transition-all shadow-lg hover:shadow-emerald-500/20"
                       )}
                     >
                       <div className="p-2 rounded-lg bg-emerald-500/10">
@@ -852,7 +871,7 @@ export function ChatMessage({
                       "hover:bg-[var(--color-surface)] active:scale-95",
                       copied
                         ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/30"
-                        : "text-[var(--color-text-secondary)]",
+                        : "text-[var(--color-text-secondary)]"
                     )}
                     title="Copy"
                   >
@@ -878,15 +897,15 @@ export function ChatMessage({
                       isSpeaking
                         ? "text-red-400 bg-red-500/10 border-red-500/30"
                         : isLoadingTTS
-                          ? "text-blue-400 bg-blue-500/10 border-blue-500/30"
-                          : "text-[var(--color-text-secondary)]",
+                        ? "text-blue-400 bg-blue-500/10 border-blue-500/30"
+                        : "text-[var(--color-text-secondary)]"
                     )}
                     title={
                       isSpeaking
                         ? "Stop"
                         : isLoadingTTS
-                          ? "Loading..."
-                          : "Speak"
+                        ? "Loading..."
+                        : "Speak"
                     }
                   >
                     {isLoadingTTS ? (
@@ -916,7 +935,7 @@ export function ChatMessage({
                       "hover:bg-[var(--color-surface)] active:scale-95",
                       feedback === "up"
                         ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/30"
-                        : "text-[var(--color-text-muted)] border-[var(--color-border)] hover:border-[var(--color-border-hover)] hover:text-[var(--color-text-secondary)]",
+                        : "text-[var(--color-text-muted)] border-[var(--color-border)] hover:border-[var(--color-border-hover)] hover:text-[var(--color-text-secondary)]"
                     )}
                     title="Good response"
                   >
@@ -932,7 +951,7 @@ export function ChatMessage({
                       "hover:bg-[var(--color-surface)] active:scale-95",
                       feedback === "down"
                         ? "text-red-400 bg-red-500/10 border-red-500/30"
-                        : "text-[var(--color-text-muted)] border-[var(--color-border)] hover:border-[var(--color-border-hover)] hover:text-[var(--color-text-secondary)]",
+                        : "text-[var(--color-text-muted)] border-[var(--color-border)] hover:border-[var(--color-border-hover)] hover:text-[var(--color-text-secondary)]"
                     )}
                     title="Bad response"
                   >
@@ -945,7 +964,7 @@ export function ChatMessage({
                       "p-2 rounded-xl transition-all border border-[var(--color-border)]",
                       "text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]",
                       "hover:bg-[var(--color-surface)] hover:border-[var(--color-border-hover)]",
-                      "active:scale-95",
+                      "active:scale-95"
                     )}
                     title="Regenerate"
                   >
@@ -958,7 +977,7 @@ export function ChatMessage({
                       "p-2 rounded-xl transition-all border border-[var(--color-border)]",
                       "text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]",
                       "hover:bg-[var(--color-surface)] hover:border-[var(--color-border-hover)]",
-                      "active:scale-95",
+                      "active:scale-95"
                     )}
                     title="Share"
                   >
@@ -973,7 +992,7 @@ export function ChatMessage({
                       "flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all",
                       "border border-[var(--color-border)] hover:border-emerald-500/30",
                       "text-[var(--color-text-secondary)] hover:text-emerald-400",
-                      "hover:bg-emerald-500/10 active:scale-95",
+                      "hover:bg-emerald-500/10 active:scale-95"
                     )}
                     title="Reply to this message"
                   >

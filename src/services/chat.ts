@@ -16,15 +16,21 @@ export interface StreamChatOptions {
 
 export interface StreamCallbacks {
   onChunk: (content: string) => void;
-  onDone: (fullResponse: string, conversationId?: string) => void;
+  onDone: (
+    fullResponse: string,
+    conversationId?: string,
+    generatedImages?: Array<{ url: string; revised_prompt?: string }>
+  ) => void;
   onError: (error: string) => void;
   onStreamId?: (streamId: string) => void;
+  onImage?: (image: string) => void;
+  onProgress?: (message: string) => void;
 }
 
 // Stream a chat response using Server-Sent Events
 export async function streamChat(
   options: StreamChatOptions,
-  callbacks: StreamCallbacks,
+  callbacks: StreamCallbacks
 ): Promise<{ abort: () => void }> {
   const controller = new AbortController();
 
@@ -161,9 +167,18 @@ export async function streamChat(
                     if (data.conversationId) {
                       conversationId = data.conversationId;
                     }
+                    // Handle generated images in done response
+                    if (data.generated_images && callbacks.onImage) {
+                      for (const image of data.generated_images) {
+                        if (image.url) {
+                          callbacks.onImage(image.url);
+                        }
+                      }
+                    }
                     callbacks.onDone(
                       data.full_response || fullResponse,
                       conversationId,
+                      data.generated_images
                     );
                     return;
 
@@ -171,8 +186,20 @@ export async function streamChat(
                     callbacks.onError(data.message || "Stream error");
                     return;
 
+                  case "image":
+                    if (data.url && callbacks.onImage) {
+                      callbacks.onImage(data.url);
+                    }
+                    break;
+
+                  case "progress":
+                    if (data.message && callbacks.onProgress) {
+                      callbacks.onProgress(data.message);
+                    }
+                    break;
+
                   case "close":
-                    callbacks.onDone(fullResponse, conversationId);
+                    callbacks.onDone(fullResponse, conversationId, undefined);
                     return;
                 }
               } catch {
@@ -185,7 +212,7 @@ export async function streamChat(
 
         // Stream ended without explicit done message
         if (fullResponse) {
-          callbacks.onDone(fullResponse, conversationId);
+          callbacks.onDone(fullResponse, conversationId, undefined);
         }
       } catch (error) {
         if ((error as Error).name === "AbortError") {
@@ -193,7 +220,7 @@ export async function streamChat(
           return;
         }
         callbacks.onError(
-          (error as Error).message || "Stream processing error",
+          (error as Error).message || "Stream processing error"
         );
       }
     };
@@ -203,7 +230,7 @@ export async function streamChat(
     return { abort: () => controller.abort() };
   } catch (error) {
     callbacks.onError(
-      (error as Error).message || "Failed to connect to chat service",
+      (error as Error).message || "Failed to connect to chat service"
     );
     return { abort: () => controller.abort() };
   }
