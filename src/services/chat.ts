@@ -14,12 +14,21 @@ export interface StreamChatOptions {
   researchMode?: boolean; // Enable web research mode
 }
 
+export interface Citation {
+  type: string;
+  url: string;
+  title: string;
+  start_index: number;
+  end_index: number;
+}
+
 export interface StreamCallbacks {
   onChunk: (content: string) => void;
   onDone: (
     fullResponse: string,
     conversationId?: string,
-    generatedImages?: Array<{ url: string; revised_prompt?: string }>
+    generatedImages?: Array<{ url: string; revised_prompt?: string }>,
+    citations?: Citation[]
   ) => void;
   onError: (error: string) => void;
   onStreamId?: (streamId: string) => void;
@@ -175,10 +184,12 @@ export async function streamChat(
                         }
                       }
                     }
+                    // Pass citations from the done event
                     callbacks.onDone(
                       data.full_response || fullResponse,
                       conversationId,
-                      data.generated_images
+                      data.generated_images,
+                      data.citations
                     );
                     return;
 

@@ -14,6 +14,10 @@ import {
   Download,
   X,
   Image as ImageIcon,
+  Globe,
+  ExternalLink,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -181,6 +185,15 @@ function normalizeLanguage(lang: string | undefined): string {
   return normalized;
 }
 
+// Type for citation from web search
+interface Citation {
+  type: string;
+  url: string;
+  title: string;
+  start_index: number;
+  end_index: number;
+}
+
 // Type for message metadata from Cloudinary
 interface MessageMetadata {
   hasImage?: boolean;
@@ -197,6 +210,7 @@ interface MessageMetadata {
     url: string;
     revised_prompt?: string;
   }>;
+  citations?: Citation[];
   [key: string]: unknown;
 }
 
@@ -307,6 +321,139 @@ function CodeBlock({
           </pre>
         </div>
       </div>
+    </div>
+  );
+}
+
+// Sources component for displaying citations from web search
+function SourcesPanel({ citations }: { citations: Citation[] }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  // Deduplicate citations by URL
+  const uniqueCitations = citations.reduce((acc, citation) => {
+    if (!acc.some((c) => c.url === citation.url)) {
+      acc.push(citation);
+    }
+    return acc;
+  }, [] as Citation[]);
+
+  if (uniqueCitations.length === 0) return null;
+
+  // Extract domain/favicon from URL
+  const getFaviconUrl = (url: string) => {
+    try {
+      const domain = new URL(url).hostname;
+      return `https://www.google.com/s2/favicons?domain=${domain}&sz=32`;
+    } catch {
+      return null;
+    }
+  };
+
+  const getDomain = (url: string) => {
+    try {
+      return new URL(url).hostname.replace("www.", "");
+    } catch {
+      return url;
+    }
+  };
+
+  const displayedCitations = isExpanded
+    ? uniqueCitations
+    : uniqueCitations.slice(0, 3);
+  const hasMore = uniqueCitations.length > 3;
+
+  return (
+    <div className="mt-4 mb-2">
+      <div className="flex items-center gap-2 mb-3">
+        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-500/10 border border-blue-500/20">
+          <Globe size={14} className="text-blue-400" />
+          <span className="text-xs font-medium text-blue-400">Sources</span>
+        </div>
+        <span className="text-xs text-[var(--color-text-muted)]">
+          {uniqueCitations.length}{" "}
+          {uniqueCitations.length === 1 ? "source" : "sources"}
+        </span>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        {displayedCitations.map((citation, idx) => {
+          const faviconUrl = getFaviconUrl(citation.url);
+          const domain = getDomain(citation.url);
+
+          return (
+            <a
+              key={idx}
+              href={citation.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={cn(
+                "group flex items-center gap-2.5 px-3 py-2 rounded-xl",
+                "bg-[var(--color-surface)] border border-[var(--color-border)]",
+                "hover:border-blue-500/40 hover:bg-[var(--color-surface-hover)]",
+                "transition-all duration-200 max-w-[280px]"
+              )}
+            >
+              <div className="flex-shrink-0 w-5 h-5 rounded-md bg-white/10 flex items-center justify-center overflow-hidden">
+                {faviconUrl ? (
+                  <img
+                    src={faviconUrl}
+                    alt=""
+                    className="w-4 h-4"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = "none";
+                      (
+                        e.target as HTMLImageElement
+                      ).nextElementSibling?.classList.remove("hidden");
+                    }}
+                  />
+                ) : null}
+                <Globe
+                  size={12}
+                  className={cn(
+                    "text-[var(--color-text-muted)]",
+                    faviconUrl && "hidden"
+                  )}
+                />
+              </div>
+              <div className="flex-1 min-w-0 flex flex-col">
+                <span className="text-xs font-medium text-[var(--color-text-primary)] truncate leading-tight">
+                  {citation.title || domain}
+                </span>
+                <span className="text-[10px] text-[var(--color-text-muted)] truncate">
+                  {domain}
+                </span>
+              </div>
+              <ExternalLink
+                size={12}
+                className="flex-shrink-0 text-[var(--color-text-muted)] opacity-0 group-hover:opacity-100 transition-opacity"
+              />
+            </a>
+          );
+        })}
+      </div>
+
+      {hasMore && (
+        <button
+          onClick={() => setIsExpanded(!isExpanded)}
+          className={cn(
+            "flex items-center gap-1.5 mt-2.5 px-3 py-1.5 rounded-lg text-xs font-medium",
+            "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]",
+            "hover:bg-[var(--color-surface)] transition-all"
+          )}
+        >
+          {isExpanded ? (
+            <>
+              <ChevronUp size={14} />
+              Show less
+            </>
+          ) : (
+            <>
+              <ChevronDown size={14} />
+              Show {uniqueCitations.length - 3} more
+            </>
+          )}
+        </button>
+      )}
     </div>
   );
 }
@@ -858,6 +1005,13 @@ export function ChatMessage({
                       </div>
                     ))}
                   </div>
+                )}
+
+              {/* Sources from web search */}
+              {!isUser &&
+                metadata?.citations &&
+                metadata.citations.length > 0 && (
+                  <SourcesPanel citations={metadata.citations} />
                 )}
 
               {/* Actions - enhanced */}

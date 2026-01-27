@@ -435,16 +435,23 @@ export default function App() {
           onProgress: (message) => {
             setStreamingProgress(message);
           },
-          onDone: (fullResponse, serverConversationId, generatedImages) => {
+          onDone: (
+            fullResponse,
+            serverConversationId,
+            generatedImages,
+            citations
+          ) => {
             const assistantMessage: Message = {
               id: generateId(),
               role: "assistant",
               content: fullResponse,
               metadata:
-                generatedImages && generatedImages.length > 0
+                (generatedImages && generatedImages.length > 0) ||
+                (citations && citations.length > 0)
                   ? {
                       generatedImages: generatedImages,
-                      hasImage: true,
+                      hasImage: generatedImages && generatedImages.length > 0,
+                      citations: citations,
                     }
                   : undefined,
             };
