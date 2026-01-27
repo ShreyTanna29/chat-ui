@@ -13,6 +13,7 @@ import {
   Camera,
   Loader2,
   Search,
+  Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -42,6 +43,8 @@ interface SidebarProps {
   onShowChat?: () => void;
   // Discover
   onShowDiscover?: () => void;
+  // Settings
+  onShowSettings?: () => void;
 }
 
 export function Sidebar({
@@ -60,6 +63,7 @@ export function Sidebar({
   onShowSpaces,
   onShowChat,
   onShowDiscover,
+  onShowSettings,
 }: SidebarProps) {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
@@ -425,6 +429,18 @@ export function Sidebar({
               title="Logout"
             >
               <LogOut size={20} />
+            </button>
+
+            {/* Settings icon */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onShowSettings?.();
+              }}
+              className="p-2 rounded-lg hover:bg-[var(--color-surface-active)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors cursor-pointer relative z-10"
+              title="Settings"
+            >
+              <Settings size={20} />
             </button>
           </div>
         </div>

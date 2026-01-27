@@ -4,6 +4,7 @@ import { ChatContainer } from "@/components/ChatContainer";
 import { AuthPage } from "@/components/AuthPage";
 import { SpacesSection } from "@/components/SpacesSection";
 import { DiscoverSection } from "@/components/DiscoverSection";
+import { SettingsPage } from "@/components/SettingsPage";
 import { ChatMode } from "@/components/ChatInput";
 import { useAuth } from "@/contexts/AuthContext";
 import { streamChat, stopStream } from "@/services/chat";
@@ -66,6 +67,7 @@ export default function App() {
   );
   const [isSpacesView, setIsSpacesView] = useState(false);
   const [isDiscoverView, setIsDiscoverView] = useState(false);
+  const [isSettingsView, setIsSettingsView] = useState(false);
   const [activeSpaceId, setActiveSpaceId] = useState<string | null>(null);
   const [activeSpaceName, setActiveSpaceName] = useState<string | null>(null);
 
@@ -592,19 +594,35 @@ export default function App() {
         onShowSpaces={() => {
           setIsSpacesView(true);
           setIsDiscoverView(false);
+          setIsSettingsView(false);
         }}
         onShowChat={() => {
           setIsSpacesView(false);
           setIsDiscoverView(false);
+          setIsSettingsView(false);
         }}
         onShowDiscover={() => {
           setIsDiscoverView(true);
           setIsSpacesView(false);
+          setIsSettingsView(false);
+          setSidebarOpen(false);
+        }}
+        onShowSettings={() => {
+          setIsSettingsView(true);
+          setIsSpacesView(false);
+          setIsDiscoverView(false);
           setSidebarOpen(false);
         }}
       />
       <main className="main-content">
-        {isDiscoverView ? (
+        {isSettingsView ? (
+          <SettingsPage
+            onClose={() => setIsSettingsView(false)}
+            userName={user?.name || "User"}
+            userAvatar={user?.avatar}
+            userEmail={user?.email}
+          />
+        ) : isDiscoverView ? (
           <DiscoverSection />
         ) : isSpacesView ? (
           <SpacesSection
