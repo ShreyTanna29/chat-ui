@@ -22,13 +22,22 @@ export interface Citation {
   end_index: number;
 }
 
+export interface UploadedDocument {
+  url: string;
+  publicId: string;
+  name: string;
+  type: string;
+  size: number;
+}
+
 export interface StreamCallbacks {
   onChunk: (content: string) => void;
   onDone: (
     fullResponse: string,
     conversationId?: string,
     generatedImages?: Array<{ url: string; revised_prompt?: string }>,
-    citations?: Citation[]
+    citations?: Citation[],
+    uploadedDocument?: UploadedDocument
   ) => void;
   onError: (error: string) => void;
   onStreamId?: (streamId: string) => void;
@@ -184,12 +193,13 @@ export async function streamChat(
                         }
                       }
                     }
-                    // Pass citations from the done event
+                    // Pass citations and uploaded_document from the done event
                     callbacks.onDone(
                       data.full_response || fullResponse,
                       conversationId,
                       data.generated_images,
-                      data.citations
+                      data.citations,
+                      data.uploaded_document
                     );
                     return;
 

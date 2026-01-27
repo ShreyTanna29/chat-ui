@@ -439,7 +439,8 @@ export default function App() {
             fullResponse,
             serverConversationId,
             generatedImages,
-            citations
+            citations,
+            uploadedDocument
           ) => {
             const assistantMessage: Message = {
               id: generateId(),
@@ -464,10 +465,34 @@ export default function App() {
                   if (serverConversationId && c.id !== serverConversationId) {
                     setActiveConversationId(serverConversationId);
                   }
+
+                  // Update user message with document metadata if uploaded_document was returned
+                  let updatedMessages = c.messages;
+                  if (uploadedDocument) {
+                    updatedMessages = c.messages.map((msg) => {
+                      // Find the last user message (the one that triggered this response)
+                      if (msg.id === userMessage.id) {
+                        return {
+                          ...msg,
+                          metadata: {
+                            ...msg.metadata,
+                            hasDocument: true,
+                            documentUrl: uploadedDocument.url,
+                            documentName: uploadedDocument.name,
+                            documentType: uploadedDocument.type,
+                            documentSize: uploadedDocument.size,
+                            documentPublicId: uploadedDocument.publicId,
+                          },
+                        };
+                      }
+                      return msg;
+                    });
+                  }
+
                   return {
                     ...c,
                     id: newId,
-                    messages: [...c.messages, assistantMessage],
+                    messages: [...updatedMessages, assistantMessage],
                   };
                 }
                 return c;
