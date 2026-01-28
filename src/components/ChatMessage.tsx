@@ -475,89 +475,118 @@ function isCodeLike(text: string): boolean {
   if (!text || text.length < 20) return false;
 
   const lines = text.split("\n");
+  const trimmedText = text.trim();
 
-  // 1. Check for common programming keywords
-  const keywords = [
-    "function",
-    "const",
-    "let",
-    "var",
-    "import",
-    "export",
-    "class",
-    "interface",
-    "return",
-    "if",
-    "else",
-    "for",
-    "while",
-    "switch",
-    "case",
-    "break",
-    "public",
-    "private",
-    "protected",
-    "static",
-    "void",
-    "int",
-    "string",
-    "bool",
-    "#include",
-    "using namespace",
-    "def",
-    "package",
-    "struct",
-    "impl",
-    "console.log",
-    "System.out.println",
-    "printf",
-    "echo",
-    "print",
-  ];
+  // Strong code indicators that are rarely found in prose
+  const strongIndicators = {
+    // Code-specific operators and syntax
+    hasArrowFunction: /=>/.test(text),
+    hasPointerOp: /->/.test(text),
+    hasDoubleColon: /::/.test(text),
+    hasTemplateString: /`.*\$\{.*\}`/.test(text),
+    hasRegexLiteral: /\/[^/\s]+\/[gimuy]*/.test(text),
 
-  // Count keyword occurrences
-  let keywordCount = 0;
-  const words = text.split(/\s+/);
-  for (const word of words) {
-    if (keywords.includes(word)) keywordCount++;
+    // Paired syntax (must have both opening and closing)
+    hasMatchedBraces: (() => {
+      const openBraces = (text.match(/\{/g) || []).length;
+      const closeBraces = (text.match(/\}/g) || []).length;
+      return openBraces > 0 && openBraces === closeBraces;
+    })(),
+
+    hasMatchedBrackets: (() => {
+      const openBrackets = (text.match(/\[/g) || []).length;
+      const closeBrackets = (text.match(/\]/g) || []).length;
+      return openBrackets > 1 && openBrackets === closeBrackets;
+    })(),
+
+    // Code comments
+    hasLineComments: /\/\//.test(text) || /#(?!\s*\d)/.test(text),
+    hasBlockComments: /\/\*[\s\S]*?\*\//.test(text),
+
+    // Semicolons at end of lines (not mid-sentence)
+    hasLineSemicolons: /;(\s*$|\s*\/\/)/m.test(text),
+
+    // Assignment operators
+    hasAssignment: /\s[+\-*/%&|^]?=(?!=)\s/.test(text),
+  };
+
+  // Check for common programming patterns
+  const patterns = {
+    functionDeclaration: /\b(function|def|fn|func|fun)\s+\w+\s*\(/,
+    variableDeclaration:
+      /\b(const|let|var|int|string|bool|float|double|char)\s+\w+/,
+    importStatement: /\b(import|from|require|include|using)\s+/,
+    classDeclaration: /\b(class|interface|struct|enum|trait)\s+\w+/,
+    controlFlow: /\b(if|else|for|while|switch|foreach)\s*\(/,
+    returnStatement: /\breturn\s+[^;]*;/,
+  };
+
+  // Count pattern matches
+  let patternMatches = 0;
+  for (const pattern of Object.values(patterns)) {
+    if (pattern.test(text)) patternMatches++;
   }
 
-  // 2. Check for structural indicators
-  const hasBraces = text.includes("{") && text.includes("}");
-  const hasSemicolons = text.includes(";");
-  const hasParens = text.includes("(") && text.includes(")");
-  const hasArrows = text.includes("=>") || text.includes("->");
-  const hasComments =
-    text.includes("//") || text.includes("/*") || text.includes("# ");
-
-  // 3. Check for indentation (lines starting with spaces)
-  const indentedLines = lines.filter(
-    (l) => l.startsWith("  ") || l.startsWith("\t")
+  // Count strong indicators
+  const strongIndicatorCount = Object.values(strongIndicators).filter(
+    (val) => val === true
   ).length;
 
+  // Check indentation consistency (code usually has consistent indentation)
+  const indentedLines = lines.filter(
+    (l) => l.length > 0 && (l.startsWith("  ") || l.startsWith("\t"))
+  ).length;
+  const hasConsistentIndentation =
+    lines.length > 3 && indentedLines / lines.length > 0.4;
+
+  // Check for prose indicators (signs this is NOT code)
+  const proseIndicators = {
+    // Sentences ending with periods
+    hasSentenceEndings: /[.!?]\s+[A-Z]/.test(text),
+    // Common prose conjunctions and articles
+    hasProseWords:
+      /\b(the|a|an|is|are|was|were|been|has|have|had|will|would|should|could|this|that|these|those)\b/gi.test(
+        text
+      ) &&
+      (
+        text.match(
+          /\b(the|a|an|is|are|was|were|been|has|have|had|will|would|should|could|this|that|these|those)\b/gi
+        ) || []
+      ).length > 3,
+    // Starts with capital and ends with period (typical sentence)
+    startsWithCapital: /^[A-Z]/.test(trimmedText),
+    endsWithPeriod: /[.!?]$/.test(trimmedText),
+    // Multiple complete sentences
+    hasMultipleSentences: (text.match(/[.!?]\s+/g) || []).length > 1,
+  };
+
+  const proseScore =
+    (proseIndicators.hasSentenceEndings ? 2 : 0) +
+    (proseIndicators.hasProseWords ? 2 : 0) +
+    (proseIndicators.startsWithCapital &&
+    proseIndicators.endsWithPeriod &&
+    !strongIndicators.hasLineSemicolons
+      ? 1
+      : 0) +
+    (proseIndicators.hasMultipleSentences && patternMatches === 0 ? 2 : 0);
+
   // Scoring system
-  let score = 0;
+  let codeScore = 0;
 
-  if (keywordCount > 0) score += keywordCount * 2;
-  if (hasBraces) score += 3;
-  if (hasSemicolons) score += 2;
-  if (hasParens) score += 1;
-  if (hasArrows) score += 3;
-  if (hasComments) score += 3;
-  if (indentedLines > 1) score += 3;
+  // Strong indicators are worth more
+  codeScore += strongIndicatorCount * 3;
 
-  // Penalize for common sentence structure (capital letter start, period end)
-  if (
-    /^[A-Z]/.test(text) &&
-    /\.$/.test(text.trim()) &&
-    !hasSemicolons &&
-    !hasBraces
-  ) {
-    score -= 5;
-  }
+  // Pattern matches
+  codeScore += patternMatches * 4;
 
-  // Threshold
-  return score >= 5;
+  // Consistent indentation
+  if (hasConsistentIndentation) codeScore += 3;
+
+  // Subtract prose score
+  codeScore -= proseScore;
+
+  // Require a higher threshold and that code indicators outweigh prose indicators
+  return codeScore >= 8 && strongIndicatorCount + patternMatches > 0;
 }
 
 export function ChatMessage({
