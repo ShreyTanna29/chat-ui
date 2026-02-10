@@ -63,7 +63,7 @@ export default function App() {
     Array<{ url: string; revised_prompt?: string }>
   >([]);
   const [streamingProgress, setStreamingProgress] = useState<string | null>(
-    null
+    null,
   );
   const [isSpacesView, setIsSpacesView] = useState(false);
   const [isDiscoverView, setIsDiscoverView] = useState(false);
@@ -128,7 +128,7 @@ export default function App() {
             };
           }
           return c;
-        })
+        }),
       );
     } else if (
       serverConversationId &&
@@ -140,8 +140,8 @@ export default function App() {
         prev.map((c) =>
           c.id === activeConversationId
             ? { ...c, id: serverConversationId! }
-            : c
-        )
+            : c,
+        ),
       );
       setActiveConversationId(serverConversationId);
     }
@@ -154,7 +154,7 @@ export default function App() {
   }, [streamingContent, activeConversationId]);
 
   const activeConversation = conversations.find(
-    (c) => c.id === activeConversationId
+    (c) => c.id === activeConversationId,
   );
   const messages = activeConversation?.messages || [];
 
@@ -176,7 +176,7 @@ export default function App() {
                 role: msg.role,
                 content: msg.content,
               })) || [],
-          })
+          }),
         );
         setConversations(formattedConversations);
       }
@@ -201,8 +201,8 @@ export default function App() {
                   metadata: msg.metadata,
                 })),
               }
-            : c
-        )
+            : c,
+        ),
       );
     }
   };
@@ -249,7 +249,7 @@ export default function App() {
       // Always load full conversation since the list API only returns partial messages
       await loadFullConversation(id);
     },
-    []
+    [],
   );
 
   const handleDeleteConversation = useCallback(
@@ -262,7 +262,7 @@ export default function App() {
         }
       }
     },
-    [activeConversationId]
+    [activeConversationId],
   );
 
   const handleNewChatInSpace = useCallback(
@@ -280,7 +280,7 @@ export default function App() {
       setIsSpacesView(false);
       setSidebarOpen(false);
     },
-    []
+    [],
   );
 
   // Voice chat lifecycle & mapping to messages
@@ -396,8 +396,8 @@ export default function App() {
           prev.map((c) =>
             c.id === currentConversationId
               ? { ...c, messages: [...c.messages, userMessage] }
-              : c
-          )
+              : c,
+          ),
         );
       }
 
@@ -442,7 +442,8 @@ export default function App() {
             serverConversationId,
             generatedImages,
             citations,
-            uploadedDocument
+            uploadedDocument,
+            uploadedImage,
           ) => {
             const assistantMessage: Message = {
               id: generateId(),
@@ -468,9 +469,9 @@ export default function App() {
                     setActiveConversationId(serverConversationId);
                   }
 
-                  // Update user message with document metadata if uploaded_document was returned
+                  // Update user message with document/image metadata if uploaded_document or uploaded_image was returned
                   let updatedMessages = c.messages;
-                  if (uploadedDocument) {
+                  if (uploadedDocument || uploadedImage) {
                     updatedMessages = c.messages.map((msg) => {
                       // Find the last user message (the one that triggered this response)
                       if (msg.id === userMessage.id) {
@@ -478,12 +479,21 @@ export default function App() {
                           ...msg,
                           metadata: {
                             ...msg.metadata,
-                            hasDocument: true,
-                            documentUrl: uploadedDocument.url,
-                            documentName: uploadedDocument.name,
-                            documentType: uploadedDocument.type,
-                            documentSize: uploadedDocument.size,
-                            documentPublicId: uploadedDocument.publicId,
+                            // Add document metadata
+                            ...(uploadedDocument && {
+                              hasDocument: true,
+                              documentUrl: uploadedDocument.url,
+                              documentName: uploadedDocument.name,
+                              documentType: uploadedDocument.type,
+                              documentSize: uploadedDocument.size,
+                              documentPublicId: uploadedDocument.publicId,
+                            }),
+                            // Add image metadata
+                            ...(uploadedImage && {
+                              hasImage: true,
+                              imageUrl: uploadedImage.url,
+                              imagePublicId: uploadedImage.publicId,
+                            }),
                           },
                         };
                       }
@@ -498,7 +508,7 @@ export default function App() {
                   };
                 }
                 return c;
-              })
+              }),
             );
 
             setIsLoading(false);
@@ -519,8 +529,8 @@ export default function App() {
               prev.map((c) =>
                 c.id === currentConversationId
                   ? { ...c, messages: [...c.messages, errorMessage] }
-                  : c
-              )
+                  : c,
+              ),
             );
 
             setIsLoading(false);
@@ -528,12 +538,12 @@ export default function App() {
             setStreamingContent("");
             abortRef.current = null;
           },
-        }
+        },
       );
 
       abortRef.current = abort;
     },
-    [activeConversationId, activeSpaceId]
+    [activeConversationId, activeSpaceId],
   );
 
   const handleRegenerate = useCallback(
@@ -542,7 +552,7 @@ export default function App() {
       // This preserves the chat history and appends the new interaction
       handleSend(prompt);
     },
-    [handleSend]
+    [handleSend],
   );
 
   // Show loading state while checking auth

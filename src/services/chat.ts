@@ -30,6 +30,11 @@ export interface UploadedDocument {
   size: number;
 }
 
+export interface UploadedImage {
+  url: string;
+  publicId: string;
+}
+
 export interface StreamCallbacks {
   onChunk: (content: string) => void;
   onDone: (
@@ -37,7 +42,8 @@ export interface StreamCallbacks {
     conversationId?: string,
     generatedImages?: Array<{ url: string; revised_prompt?: string }>,
     citations?: Citation[],
-    uploadedDocument?: UploadedDocument
+    uploadedDocument?: UploadedDocument,
+    uploadedImage?: UploadedImage,
   ) => void;
   onError: (error: string) => void;
   onStreamId?: (streamId: string) => void;
@@ -48,7 +54,7 @@ export interface StreamCallbacks {
 // Stream a chat response using Server-Sent Events
 export async function streamChat(
   options: StreamChatOptions,
-  callbacks: StreamCallbacks
+  callbacks: StreamCallbacks,
 ): Promise<{ abort: () => void }> {
   const controller = new AbortController();
 
@@ -193,13 +199,14 @@ export async function streamChat(
                         }
                       }
                     }
-                    // Pass citations and uploaded_document from the done event
+                    // Pass citations, uploaded_document, and uploaded_image from the done event
                     callbacks.onDone(
                       data.full_response || fullResponse,
                       conversationId,
                       data.generated_images,
                       data.citations,
-                      data.uploaded_document
+                      data.uploaded_document,
+                      data.uploaded_image,
                     );
                     return;
 
@@ -241,7 +248,7 @@ export async function streamChat(
           return;
         }
         callbacks.onError(
-          (error as Error).message || "Stream processing error"
+          (error as Error).message || "Stream processing error",
         );
       }
     };
@@ -251,7 +258,7 @@ export async function streamChat(
     return { abort: () => controller.abort() };
   } catch (error) {
     callbacks.onError(
-      (error as Error).message || "Failed to connect to chat service"
+      (error as Error).message || "Failed to connect to chat service",
     );
     return { abort: () => controller.abort() };
   }
