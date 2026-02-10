@@ -144,6 +144,23 @@ export function ChatInput({
     }
   };
 
+  const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.type.startsWith("image/")) {
+        e.preventDefault(); // Prevent pasting the image as text
+        const file = item.getAsFile();
+        if (file) {
+          setImageFile(file);
+        }
+        break;
+      }
+    }
+  };
+
   const canSend =
     (value.trim().length > 0 || imageFile || documentFile || quotedText) &&
     !disabled;
@@ -326,6 +343,7 @@ export function ChatInput({
             value={value}
             onChange={(e) => setValue(e.target.value)}
             onKeyDown={handleKeyDown}
+            onPaste={handlePaste}
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
             placeholder={quotedText ? "Ask about this..." : placeholder}
