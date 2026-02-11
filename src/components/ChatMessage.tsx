@@ -272,7 +272,7 @@ function CodeBlock({
             "border border-transparent",
             copied
               ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/30"
-              : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface)]"
+              : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface)]",
           )}
           title="Copy code"
         >
@@ -312,7 +312,7 @@ function CodeBlock({
               ref={codeRef}
               className={cn(
                 "hljs font-mono text-sm leading-relaxed bg-transparent",
-                normalizedLang && `language-${normalizedLang}`
+                normalizedLang && `language-${normalizedLang}`,
               )}
               style={{ background: "transparent" }}
             >
@@ -390,7 +390,7 @@ function SourcesPanel({ citations }: { citations: Citation[] }) {
                 "group flex items-center gap-2.5 px-3 py-2 rounded-xl",
                 "bg-[var(--color-surface)] border border-[var(--color-border)]",
                 "hover:border-blue-500/40 hover:bg-[var(--color-surface-hover)]",
-                "transition-all duration-200 max-w-[280px]"
+                "transition-all duration-200 max-w-[280px]",
               )}
             >
               <div className="flex-shrink-0 w-5 h-5 rounded-md bg-white/10 flex items-center justify-center overflow-hidden">
@@ -411,7 +411,7 @@ function SourcesPanel({ citations }: { citations: Citation[] }) {
                   size={12}
                   className={cn(
                     "text-[var(--color-text-muted)]",
-                    faviconUrl && "hidden"
+                    faviconUrl && "hidden",
                   )}
                 />
               </div>
@@ -438,7 +438,7 @@ function SourcesPanel({ citations }: { citations: Citation[] }) {
           className={cn(
             "flex items-center gap-1.5 mt-2.5 px-3 py-1.5 rounded-lg text-xs font-medium",
             "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]",
-            "hover:bg-[var(--color-surface)] transition-all"
+            "hover:bg-[var(--color-surface)] transition-all",
           )}
         >
           {isExpanded ? (
@@ -529,12 +529,12 @@ function isCodeLike(text: string): boolean {
 
   // Count strong indicators
   const strongIndicatorCount = Object.values(strongIndicators).filter(
-    (val) => val === true
+    (val) => val === true,
   ).length;
 
   // Check indentation consistency (code usually has consistent indentation)
   const indentedLines = lines.filter(
-    (l) => l.length > 0 && (l.startsWith("  ") || l.startsWith("\t"))
+    (l) => l.length > 0 && (l.startsWith("  ") || l.startsWith("\t")),
   ).length;
   const hasConsistentIndentation =
     lines.length > 3 && indentedLines / lines.length > 0.4;
@@ -546,11 +546,11 @@ function isCodeLike(text: string): boolean {
     // Common prose conjunctions and articles
     hasProseWords:
       /\b(the|a|an|is|are|was|were|been|has|have|had|will|would|should|could|this|that|these|those)\b/gi.test(
-        text
+        text,
       ) &&
       (
         text.match(
-          /\b(the|a|an|is|are|was|were|been|has|have|had|will|would|should|could|this|that|these|those)\b/gi
+          /\b(the|a|an|is|are|was|were|been|has|have|had|will|would|should|could|this|that|these|those)\b/gi,
         ) || []
       ).length > 3,
     // Starts with capital and ends with period (typical sentence)
@@ -607,6 +607,7 @@ export function ChatMessage({
     top: number;
     left: number;
   } | null>(null);
+  const [selectionCopied, setSelectionCopied] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
   const [imageZoom, setImageZoom] = useState<string | null>(null);
 
@@ -667,7 +668,7 @@ export function ChatMessage({
           setIsLoadingTTS(false);
           ttsControllerRef.current = null;
         },
-      }
+      },
     );
     ttsControllerRef.current = controller;
   };
@@ -718,7 +719,20 @@ export function ChatMessage({
     if (selection && onAskErudite) {
       onAskErudite(selection.text);
       setSelection(null);
+      setSelectionCopied(false);
       window.getSelection()?.removeAllRanges();
+    }
+  };
+
+  const handleCopySelection = async () => {
+    if (selection) {
+      await navigator.clipboard.writeText(selection.text);
+      setSelectionCopied(true);
+      setTimeout(() => {
+        setSelectionCopied(false);
+        setSelection(null);
+        window.getSelection()?.removeAllRanges();
+      }, 1500);
     }
   };
 
@@ -730,7 +744,7 @@ export function ChatMessage({
         "w-full py-8 animate-slide-up relative",
         isUser
           ? "bg-transparent"
-          : "bg-gradient-to-b from-[var(--color-surface)]/30 to-transparent border-t border-[var(--color-border)]/50"
+          : "bg-gradient-to-b from-[var(--color-surface)]/30 to-transparent border-t border-[var(--color-border)]/50",
       )}
     >
       {/* Ask Erudite Tooltip */}
@@ -743,13 +757,37 @@ export function ChatMessage({
             transform: "translateX(-50%)",
           }}
         >
-          <button
-            onClick={handleAskErudite}
-            className="flex items-center gap-2 px-3 py-2 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl shadow-xl hover:bg-[var(--color-surface-hover)] transition-colors text-sm font-medium text-[var(--color-text-primary)]"
-          >
-            <Reply size={16} className="text-emerald-400" />
-            Ask Erudite
-          </button>
+          <div className="flex items-center gap-2 px-2 py-2 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl shadow-xl">
+            <button
+              onClick={handleCopySelection}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all",
+                selectionCopied
+                  ? "text-emerald-400 bg-emerald-500/10"
+                  : "text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)]",
+              )}
+            >
+              {selectionCopied ? (
+                <>
+                  <Check size={16} className="text-emerald-400" />
+                  <span>Copied!</span>
+                </>
+              ) : (
+                <>
+                  <Copy size={16} />
+                  <span>Copy</span>
+                </>
+              )}
+            </button>
+            <div className="w-px h-6 bg-[var(--color-border)]" />
+            <button
+              onClick={handleAskErudite}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)] transition-colors"
+            >
+              <Reply size={16} className="text-emerald-400" />
+              <span>Ask Erudite</span>
+            </button>
+          </div>
           <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-3 h-3 bg-[var(--color-surface)] border-b border-r border-[var(--color-border)] rotate-45" />
         </div>
       )}
@@ -757,7 +795,7 @@ export function ChatMessage({
       <div
         className={cn(
           "max-w-5xl mx-auto px-4 sm:px-6 flex gap-4",
-          isUser && "flex-row-reverse"
+          isUser && "flex-row-reverse",
         )}
       >
         {/* Avatar */}
@@ -766,7 +804,7 @@ export function ChatMessage({
             "flex-shrink-0 w-10 h-10 rounded-2xl flex items-center justify-center transition-all duration-300 shadow-lg",
             isUser
               ? "bg-gradient-to-br from-gray-700 to-gray-800 border border-[var(--color-border)] group-hover:shadow-gray-500/20"
-              : "bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-emerald-500/30 animate-float"
+              : "bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-emerald-500/30 animate-float",
           )}
         >
           {isUser ? (
@@ -787,7 +825,7 @@ export function ChatMessage({
           <div
             className={cn(
               "flex items-center gap-2 mb-2.5",
-              isUser && "justify-end"
+              isUser && "justify-end",
             )}
           >
             <span className="font-semibold text-sm text-[var(--color-text-primary)]">
@@ -871,7 +909,7 @@ export function ChatMessage({
                   "prose-table:w-full prose-table:my-6 prose-table:border-collapse",
                   "prose-th:text-left prose-th:p-2 prose-th:border-b prose-th:border-[var(--color-border)] prose-th:text-[var(--color-text-primary)]",
                   "prose-td:p-2 prose-td:border-b prose-td:border-[var(--color-border)] prose-td:text-[var(--color-text-secondary)]",
-                  isUser && "text-right prose-p:text-right"
+                  isUser && "text-right prose-p:text-right",
                 )}
               >
                 <ReactMarkdown
@@ -940,7 +978,7 @@ export function ChatMessage({
                 <div
                   className={cn(
                     "mt-4 flex flex-wrap gap-3",
-                    isUser && "justify-end"
+                    isUser && "justify-end",
                   )}
                 >
                   {/* Image attachment */}
@@ -976,7 +1014,7 @@ export function ChatMessage({
                         "flex items-center gap-3 px-4 py-3 rounded-xl",
                         "bg-[var(--color-surface)] border border-[var(--color-border)]",
                         "hover:border-emerald-500/40 hover:bg-[var(--color-surface-hover)]",
-                        "transition-all shadow-lg hover:shadow-emerald-500/20"
+                        "transition-all shadow-lg hover:shadow-emerald-500/20",
                       )}
                     >
                       <div className="p-2 rounded-lg bg-emerald-500/10">
@@ -1054,7 +1092,7 @@ export function ChatMessage({
                       "hover:bg-[var(--color-surface)] active:scale-95",
                       copied
                         ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/30"
-                        : "text-[var(--color-text-secondary)]"
+                        : "text-[var(--color-text-secondary)]",
                     )}
                     title="Copy"
                   >
@@ -1080,15 +1118,15 @@ export function ChatMessage({
                       isSpeaking
                         ? "text-red-400 bg-red-500/10 border-red-500/30"
                         : isLoadingTTS
-                        ? "text-blue-400 bg-blue-500/10 border-blue-500/30"
-                        : "text-[var(--color-text-secondary)]"
+                          ? "text-blue-400 bg-blue-500/10 border-blue-500/30"
+                          : "text-[var(--color-text-secondary)]",
                     )}
                     title={
                       isSpeaking
                         ? "Stop"
                         : isLoadingTTS
-                        ? "Loading..."
-                        : "Speak"
+                          ? "Loading..."
+                          : "Speak"
                     }
                   >
                     {isLoadingTTS ? (
@@ -1118,7 +1156,7 @@ export function ChatMessage({
                       "hover:bg-[var(--color-surface)] active:scale-95",
                       feedback === "up"
                         ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/30"
-                        : "text-[var(--color-text-muted)] border-[var(--color-border)] hover:border-[var(--color-border-hover)] hover:text-[var(--color-text-secondary)]"
+                        : "text-[var(--color-text-muted)] border-[var(--color-border)] hover:border-[var(--color-border-hover)] hover:text-[var(--color-text-secondary)]",
                     )}
                     title="Good response"
                   >
@@ -1134,7 +1172,7 @@ export function ChatMessage({
                       "hover:bg-[var(--color-surface)] active:scale-95",
                       feedback === "down"
                         ? "text-red-400 bg-red-500/10 border-red-500/30"
-                        : "text-[var(--color-text-muted)] border-[var(--color-border)] hover:border-[var(--color-border-hover)] hover:text-[var(--color-text-secondary)]"
+                        : "text-[var(--color-text-muted)] border-[var(--color-border)] hover:border-[var(--color-border-hover)] hover:text-[var(--color-text-secondary)]",
                     )}
                     title="Bad response"
                   >
@@ -1147,7 +1185,7 @@ export function ChatMessage({
                       "p-2 rounded-xl transition-all border border-[var(--color-border)]",
                       "text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]",
                       "hover:bg-[var(--color-surface)] hover:border-[var(--color-border-hover)]",
-                      "active:scale-95"
+                      "active:scale-95",
                     )}
                     title="Regenerate"
                   >
@@ -1160,7 +1198,7 @@ export function ChatMessage({
                       "p-2 rounded-xl transition-all border border-[var(--color-border)]",
                       "text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]",
                       "hover:bg-[var(--color-surface)] hover:border-[var(--color-border-hover)]",
-                      "active:scale-95"
+                      "active:scale-95",
                     )}
                     title="Share"
                   >
@@ -1175,7 +1213,7 @@ export function ChatMessage({
                       "flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all",
                       "border border-[var(--color-border)] hover:border-emerald-500/30",
                       "text-[var(--color-text-secondary)] hover:text-emerald-400",
-                      "hover:bg-emerald-500/10 active:scale-95"
+                      "hover:bg-emerald-500/10 active:scale-95",
                     )}
                     title="Reply to this message"
                   >
