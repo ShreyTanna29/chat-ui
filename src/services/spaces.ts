@@ -8,8 +8,10 @@ export interface Space {
   defaultPrompt: string | null;
   createdAt: string;
   updatedAt: string;
+  userRole?: "owner" | "admin" | "member";
   _count?: {
     conversations: number;
+    members?: number;
   };
 }
 
@@ -21,7 +23,7 @@ export interface SpacesListResponse {
 // Get all spaces for the current user
 export async function getSpaces(
   page: number = 1,
-  limit: number = 20
+  limit: number = 20,
 ): Promise<{
   success: boolean;
   spaces?: Space[];
@@ -29,7 +31,7 @@ export async function getSpaces(
   message?: string;
 }> {
   const response = await apiFetch<SpacesListResponse>(
-    `/api/chat/spaces?page=${page}&limit=${limit}`
+    `/api/chat/spaces?page=${page}&limit=${limit}`,
   );
 
   if (response.success && response.data) {
@@ -82,7 +84,7 @@ export async function getSpace(id: string): Promise<{
 // Update space (name and/or defaultPrompt)
 export async function updateSpace(
   id: string,
-  updates: { name?: string; defaultPrompt?: string | null }
+  updates: { name?: string; defaultPrompt?: string | null },
 ): Promise<{
   success: boolean;
   space?: Space;
@@ -116,7 +118,7 @@ export async function deleteSpace(id: string): Promise<{
 export async function getSpaceConversations(
   spaceId: string,
   page: number = 1,
-  limit: number = 20
+  limit: number = 20,
 ): Promise<{
   success: boolean;
   conversations?: Conversation[];

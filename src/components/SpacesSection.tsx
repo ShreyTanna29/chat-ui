@@ -7,6 +7,7 @@ import {
   ArrowLeft,
   Loader2,
   PencilLine,
+  Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -19,12 +20,13 @@ import {
 } from "@/services/spaces";
 import type { Conversation } from "@/services/conversations";
 import { deleteConversation } from "@/services/conversations";
+import { SpaceMembersModal } from "./SpaceMembersModal";
 
 interface SpacesSectionProps {
   onOpenConversation: (
     conversationId: string,
     spaceId?: string,
-    spaceName?: string
+    spaceName?: string,
   ) => void;
   onStartNewChatInSpace: (spaceId: string, spaceName: string) => void;
   onBackToChat: () => void;
@@ -41,7 +43,7 @@ export function SpacesSection({
 
   const [selectedSpaceId, setSelectedSpaceId] = useState<string | null>(null);
   const [spaceConversations, setSpaceConversations] = useState<Conversation[]>(
-    []
+    [],
   );
   const [conversationsLoading, setConversationsLoading] = useState(false);
 
@@ -52,6 +54,8 @@ export function SpacesSection({
   const [editingSpaceId, setEditingSpaceId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editPrompt, setEditPrompt] = useState("");
+
+  const [showMembersModal, setShowMembersModal] = useState(false);
 
   const selectedSpace = spaces.find((s) => s.id === selectedSpaceId) || null;
 
@@ -123,7 +127,7 @@ export function SpacesSection({
 
     if (result.success && result.space) {
       setSpaces((prev) =>
-        prev.map((s) => (s.id === result.space!.id ? result.space! : s))
+        prev.map((s) => (s.id === result.space!.id ? result.space! : s)),
       );
       setEditingSpaceId(null);
     }
@@ -131,7 +135,7 @@ export function SpacesSection({
 
   const handleDeleteSpace = async (space: Space) => {
     const confirmed = window.confirm(
-      `Delete space "${space.name}"? Conversations will be kept but detached from this space.`
+      `Delete space "${space.name}"? Conversations will be kept but detached from this space.`,
     );
     if (!confirmed) return;
 
@@ -152,7 +156,7 @@ export function SpacesSection({
     const result = await deleteConversation(conversationId);
     if (result.success) {
       setSpaceConversations((prev) =>
-        prev.filter((c) => c.id !== conversationId)
+        prev.filter((c) => c.id !== conversationId),
       );
     }
   };
@@ -242,7 +246,8 @@ export function SpacesSection({
                     "inline-flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-medium",
                     "bg-gradient-to-br from-emerald-600 to-emerald-700 text-white shadow-md shadow-emerald-500/30",
                     "hover:from-emerald-500 hover:to-emerald-600 active:scale-[0.98]",
-                    (isCreating || !newName.trim()) && "opacity-60 cursor-not-allowed"
+                    (isCreating || !newName.trim()) &&
+                      "opacity-60 cursor-not-allowed",
                   )}
                 >
                   {isCreating ? (
@@ -301,7 +306,7 @@ export function SpacesSection({
                             "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left group border text-xs sm:text-sm",
                             isSelected
                               ? "bg-[var(--color-surface-active)] border-[var(--color-border-hover)] shadow-sm"
-                              : "bg-transparent border-transparent hover:bg-[var(--color-surface-hover)] hover:border-[var(--color-border)]"
+                              : "bg-transparent border-transparent hover:bg-[var(--color-surface-hover)] hover:border-[var(--color-border)]",
                           )}
                         >
                           <div className="flex-shrink-0 w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-500/20 to-emerald-600/10 flex items-center justify-center border border-emerald-500/40">
@@ -360,7 +365,10 @@ export function SpacesSection({
             {!selectedSpace ? (
               <div className="flex flex-col items-center justify-center flex-1 text-center px-4">
                 <div className="w-16 h-16 rounded-2xl bg-[var(--color-surface-hover)] flex items-center justify-center mb-4 border border-[var(--color-border)]">
-                  <Folder className="text-[var(--color-text-muted)]" size={26} />
+                  <Folder
+                    className="text-[var(--color-text-muted)]"
+                    size={26}
+                  />
                 </div>
                 <h2 className="text-sm sm:text-base font-semibold text-[var(--color-text-primary)] mb-1">
                   Select a space
@@ -440,19 +448,32 @@ export function SpacesSection({
                           {selectedSpace.defaultPrompt}
                         </p>
                       )}
-                      <div className="flex items-center gap-2 mt-2">
+                      <div className="flex flex-wrap items-center gap-2 mt-2">
                         <button
                           type="button"
                           onClick={() =>
                             onStartNewChatInSpace(
                               selectedSpace.id,
-                              selectedSpace.name
+                              selectedSpace.name,
                             )
                           }
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-br from-emerald-600 to-emerald-700 text-white text-xs font-medium hover:from-emerald-500 hover:to-emerald-600 shadow-md shadow-emerald-500/30"
                         >
                           <MessageSquare size={14} />
                           New chat in this space
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setShowMembersModal(true)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[var(--color-surface-hover)] text-[var(--color-text-secondary)] text-xs font-medium hover:text-[var(--color-text-primary)] border border-[var(--color-border)]"
+                        >
+                          <Users size={14} />
+                          Members
+                          {selectedSpace._count?.members ? (
+                            <span className="px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 text-[10px] border border-emerald-500/20">
+                              {selectedSpace._count.members}
+                            </span>
+                          ) : null}
                         </button>
                         <button
                           type="button"
@@ -511,7 +532,9 @@ export function SpacesSection({
                                 {conv.title}
                               </p>
                               <p className="text-[11px] text-[var(--color-text-muted)]">
-                                {new Date(conv.updatedAt || conv.createdAt).toLocaleString()}
+                                {new Date(
+                                  conv.updatedAt || conv.createdAt,
+                                ).toLocaleString()}
                               </p>
                             </div>
                             <div className="flex items-center gap-2">
@@ -521,7 +544,7 @@ export function SpacesSection({
                                   onOpenConversation(
                                     conv.id,
                                     selectedSpace.id,
-                                    selectedSpace.name
+                                    selectedSpace.name,
                                   )
                                 }
                                 className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[var(--color-surface)] text-[var(--color-text-secondary)] text-[11px] hover:text-[var(--color-text-primary)] border border-[var(--color-border)]"
@@ -530,7 +553,9 @@ export function SpacesSection({
                               </button>
                               <button
                                 type="button"
-                                onClick={() => void handleDeleteConversation(conv.id)}
+                                onClick={() =>
+                                  void handleDeleteConversation(conv.id)
+                                }
                                 className="p-1.5 rounded-lg hover:bg-red-500/10 text-[var(--color-text-muted)] hover:text-red-400"
                               >
                                 <Trash2 size={14} />
@@ -547,6 +572,15 @@ export function SpacesSection({
           </div>
         </div>
       </div>
+
+      {/* Members Modal */}
+      {showMembersModal && selectedSpace && (
+        <SpaceMembersModal
+          space={selectedSpace}
+          onClose={() => setShowMembersModal(false)}
+          onMembersUpdated={() => void loadSpaces()}
+        />
+      )}
     </div>
   );
 }
