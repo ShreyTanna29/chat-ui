@@ -21,6 +21,7 @@ interface Conversation {
   id: string;
   title: string;
   date: string;
+  spaceId?: string;
 }
 
 interface SidebarProps {
@@ -33,7 +34,7 @@ interface SidebarProps {
   userName?: string;
   userAvatar?: string | null;
   onUploadAvatar?: (
-    file: File
+    file: File,
   ) => Promise<{ success: boolean; message?: string }>;
   isOpen: boolean;
   onToggle: () => void;
@@ -75,7 +76,7 @@ export function Sidebar({
     if (!searchQuery.trim()) return conversations;
     const query = searchQuery.toLowerCase().trim();
     return conversations.filter((conv) =>
-      conv.title.toLowerCase().includes(query)
+      conv.title.toLowerCase().includes(query),
     );
   }, [conversations, searchQuery]);
 
@@ -116,7 +117,7 @@ export function Sidebar({
           "transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]",
           isOpen
             ? "translate-x-0 shadow-2xl"
-            : "-translate-x-full md:translate-x-0"
+            : "-translate-x-full md:translate-x-0",
         )}
       >
         {/* Header */}
@@ -152,7 +153,7 @@ export function Sidebar({
               "bg-gradient-to-br from-[var(--color-surface)] to-[var(--color-surface-hover)]",
               "border border-[var(--color-border)] hover:border-[var(--color-border-hover)]",
               "shadow-sm hover:shadow-md active:scale-[0.98]",
-              "text-[15px] font-semibold text-[var(--color-text-primary)]"
+              "text-[15px] font-semibold text-[var(--color-text-primary)]",
             )}
           >
             <Plus
@@ -170,7 +171,7 @@ export function Sidebar({
               "bg-gradient-to-br from-blue-500/10 to-indigo-500/10",
               "border border-blue-500/20 hover:border-blue-400/40",
               "shadow-sm hover:shadow-md hover:shadow-blue-500/10 active:scale-[0.98]",
-              "text-[14px] font-medium text-[var(--color-text-secondary)] hover:text-blue-400"
+              "text-[14px] font-medium text-[var(--color-text-secondary)] hover:text-blue-400",
             )}
           >
             <Compass
@@ -189,7 +190,7 @@ export function Sidebar({
                 "flex-1 inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium",
                 !isSpacesView
                   ? "bg-[var(--color-surface-active)] text-[var(--color-text-primary)] shadow-sm"
-                  : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)]"
+                  : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)]",
               )}
             >
               <MessageSquare size={14} />
@@ -202,7 +203,7 @@ export function Sidebar({
                 "flex-1 inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium",
                 isSpacesView
                   ? "bg-[var(--color-surface-active)] text-[var(--color-text-primary)] shadow-sm"
-                  : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)]"
+                  : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)]",
               )}
             >
               <Folder size={14} />
@@ -234,7 +235,7 @@ export function Sidebar({
                   "bg-[var(--color-surface)] border border-[var(--color-border)]",
                   "text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)]",
                   "focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20",
-                  "transition-all duration-200"
+                  "transition-all duration-200",
                 )}
               />
               {searchQuery && (
@@ -294,7 +295,7 @@ export function Sidebar({
                     "w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-left transition-all group relative",
                     activeConversationId === conv.id
                       ? "bg-gradient-to-br from-[var(--color-surface-active)] to-[var(--color-surface-hover)] text-[var(--color-text-primary)] shadow-sm border border-[var(--color-border)]/50"
-                      : "text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text-primary)] border border-transparent"
+                      : "text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text-primary)] border border-transparent",
                   )}
                 >
                   {/* Active indicator */}
@@ -308,7 +309,7 @@ export function Sidebar({
                       "flex-shrink-0 transition-colors",
                       activeConversationId === conv.id
                         ? "text-emerald-400"
-                        : "opacity-70 group-hover:opacity-100"
+                        : "opacity-70 group-hover:opacity-100",
                     )}
                   />
                   <span className="flex-1 truncate text-sm font-medium tracking-wide">
@@ -319,7 +320,7 @@ export function Sidebar({
                   <div
                     className={cn(
                       "flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity absolute right-2 bg-gradient-to-l from-[var(--color-surface-hover)] to-transparent pl-4",
-                      hoveredId === conv.id ? "opacity-100" : ""
+                      hoveredId === conv.id ? "opacity-100" : "",
                     )}
                   >
                     <button
@@ -356,7 +357,7 @@ export function Sidebar({
           <div
             className={cn(
               "w-full flex items-center gap-3.5 px-3.5 py-3.5 rounded-2xl transition-all group",
-              "hover:bg-[var(--color-surface)] relative overflow-hidden border border-transparent hover:border-[var(--color-border)] cursor-default"
+              "hover:bg-[var(--color-surface)] relative overflow-hidden border border-transparent hover:border-[var(--color-border)] cursor-default",
             )}
           >
             {/* Shimmer effect */}
@@ -454,7 +455,7 @@ export function Sidebar({
           "bg-[var(--color-surface)] border border-[var(--color-border)]",
           "hover:bg-[var(--color-surface-hover)] hover:border-[var(--color-border-hover)]",
           "shadow-lg hover:shadow-xl active:scale-95",
-          isOpen && "opacity-0 pointer-events-none scale-90"
+          isOpen && "opacity-0 pointer-events-none scale-90",
         )}
       >
         <Menu size={20} />

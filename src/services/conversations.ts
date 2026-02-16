@@ -12,6 +12,7 @@ export interface Conversation {
   id: string;
   userId: string;
   title: string;
+  spaceId?: string;
   messages: Message[];
   _count?: {
     messages: number;
@@ -30,7 +31,7 @@ export interface PaginationInfo {
 // Get all conversations for the current user
 export async function getConversations(
   page: number = 1,
-  limit: number = 20
+  limit: number = 20,
 ): Promise<{
   success: boolean;
   conversations?: Conversation[];
@@ -60,7 +61,7 @@ export async function getConversation(id: string): Promise<{
   message?: string;
 }> {
   const response = await apiFetch<Conversation>(
-    `/api/chat/conversations/${id}`
+    `/api/chat/conversations/${id}`,
   );
 
   if (response.success && response.data) {
@@ -91,7 +92,7 @@ export async function createConversation(title?: string): Promise<{
 // Update a conversation (e.g., rename title)
 export async function updateConversation(
   id: string,
-  updates: { title?: string }
+  updates: { title?: string },
 ): Promise<{
   success: boolean;
   conversation?: Conversation;
@@ -102,7 +103,7 @@ export async function updateConversation(
     {
       method: "PUT",
       body: JSON.stringify(updates),
-    }
+    },
   );
 
   if (response.success && response.data) {
@@ -140,7 +141,7 @@ export async function deleteAllConversations(): Promise<{
 export async function searchConversations(
   query: string,
   page: number = 1,
-  limit: number = 20
+  limit: number = 20,
 ): Promise<{
   success: boolean;
   conversations?: Conversation[];
@@ -148,8 +149,8 @@ export async function searchConversations(
 }> {
   const response = await apiFetch<Conversation[]>(
     `/api/chat/conversations/search?q=${encodeURIComponent(
-      query
-    )}&page=${page}&limit=${limit}`
+      query,
+    )}&page=${page}&limit=${limit}`,
   );
 
   if (response.success && response.data) {

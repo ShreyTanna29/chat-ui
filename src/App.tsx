@@ -30,6 +30,7 @@ interface Conversation {
   id: string;
   title: string;
   date: string;
+  spaceId?: string;
   messages: Message[];
 }
 
@@ -170,6 +171,7 @@ export default function App() {
             id: conv.id,
             title: conv.title,
             date: conv.createdAt,
+            spaceId: conv.spaceId,
             messages:
               conv.messages?.map((msg) => ({
                 id: msg.id,
@@ -189,21 +191,32 @@ export default function App() {
   const loadFullConversation = async (convId: string) => {
     const result = await getConversation(convId);
     if (result.success && result.conversation) {
-      setConversations((prev) =>
-        prev.map((c) =>
-          c.id === convId
-            ? {
-                ...c,
-                messages: result.conversation!.messages.map((msg) => ({
-                  id: msg.id,
-                  role: msg.role,
-                  content: msg.content,
-                  metadata: msg.metadata,
-                })),
-              }
-            : c,
-        ),
-      );
+      const conv = result.conversation;
+      const formattedConversation: Conversation = {
+        id: conv.id,
+        title: conv.title,
+        date: conv.createdAt,
+        spaceId: conv.spaceId,
+        messages: conv.messages.map((msg) => ({
+          id: msg.id,
+          role: msg.role,
+          content: msg.content,
+          metadata: msg.metadata,
+        })),
+      };
+
+      setConversations((prev) => {
+        const existingIndex = prev.findIndex((c) => c.id === convId);
+        if (existingIndex >= 0) {
+          // Update existing conversation
+          const updated = [...prev];
+          updated[existingIndex] = formattedConversation;
+          return updated;
+        } else {
+          // Add new conversation (e.g., space conversation opened from SpacesSection)
+          return [...prev, formattedConversation];
+        }
+      });
     }
   };
 
@@ -586,10 +599,13 @@ export default function App() {
     );
   }
 
+  // Filter out space conversations from the regular chat list
+  const regularConversations = conversations.filter((conv) => !conv.spaceId);
+
   return (
     <div className="app-layout">
       <Sidebar
-        conversations={conversations}
+        conversations={regularConversations}
         activeConversationId={activeConversationId}
         onNewChat={handleNewChat}
         onSelectConversation={handleSelectConversation}
