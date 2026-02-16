@@ -211,6 +211,8 @@ interface MessageMetadata {
     revised_prompt?: string;
   }>;
   citations?: Citation[];
+  userName?: string;
+  userId?: string;
   [key: string]: unknown;
 }
 
@@ -829,7 +831,9 @@ export function ChatMessage({
             )}
           >
             <span className="font-semibold text-sm text-[var(--color-text-primary)]">
-              {isUser ? "You" : "Erudite"}
+              {isUser
+                ? (metadata?.userName as string | undefined) || "You"
+                : "Erudite"}
             </span>
             {!isUser && (
               <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-medium">
