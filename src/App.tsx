@@ -5,6 +5,7 @@ import { AuthPage } from "@/components/AuthPage";
 import { SpacesSection } from "@/components/SpacesSection";
 import { DiscoverSection } from "@/components/DiscoverSection";
 import { SettingsPage } from "@/components/SettingsPage";
+import { CodeBuilderSection } from "@/components/CodeBuilderSection";
 import { ChatMode } from "@/components/ChatInput";
 import { useAuth } from "@/contexts/AuthContext";
 import { streamChat, stopStream } from "@/services/chat";
@@ -69,6 +70,7 @@ export default function App() {
   const [isSpacesView, setIsSpacesView] = useState(false);
   const [isDiscoverView, setIsDiscoverView] = useState(false);
   const [isSettingsView, setIsSettingsView] = useState(false);
+  const [isCodeBuilderView, setIsCodeBuilderView] = useState(false);
   const [activeSpaceId, setActiveSpaceId] = useState<string | null>(null);
   const [activeSpaceName, setActiveSpaceName] = useState<string | null>(null);
 
@@ -234,6 +236,7 @@ export default function App() {
     setActiveSpaceName(null);
     setIsSpacesView(false);
     setIsDiscoverView(false);
+    setIsCodeBuilderView(false);
     setSidebarOpen(false);
   }, []);
 
@@ -621,27 +624,41 @@ export default function App() {
           setIsSpacesView(true);
           setIsDiscoverView(false);
           setIsSettingsView(false);
+          setIsCodeBuilderView(false);
         }}
         onShowChat={() => {
           setIsSpacesView(false);
           setIsDiscoverView(false);
           setIsSettingsView(false);
+          setIsCodeBuilderView(false);
         }}
         onShowDiscover={() => {
           setIsDiscoverView(true);
           setIsSpacesView(false);
           setIsSettingsView(false);
+          setIsCodeBuilderView(false);
           setSidebarOpen(false);
         }}
         onShowSettings={() => {
           setIsSettingsView(true);
           setIsSpacesView(false);
           setIsDiscoverView(false);
+          setIsCodeBuilderView(false);
           setSidebarOpen(false);
         }}
+        onShowCodeBuilder={() => {
+          setIsCodeBuilderView(true);
+          setIsSpacesView(false);
+          setIsDiscoverView(false);
+          setIsSettingsView(false);
+          setSidebarOpen(false);
+        }}
+        isCodeBuilderView={isCodeBuilderView}
       />
       <main className="main-content">
-        {isSettingsView ? (
+        {isCodeBuilderView ? (
+          <CodeBuilderSection onBack={() => setIsCodeBuilderView(false)} />
+        ) : isSettingsView ? (
           <SettingsPage
             onClose={() => setIsSettingsView(false)}
             userName={user?.name || "User"}

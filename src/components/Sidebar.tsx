@@ -14,6 +14,7 @@ import {
   Loader2,
   Search,
   Settings,
+  Code2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -46,6 +47,9 @@ interface SidebarProps {
   onShowDiscover?: () => void;
   // Settings
   onShowSettings?: () => void;
+  // Code Builder
+  onShowCodeBuilder?: () => void;
+  isCodeBuilderView?: boolean;
 }
 
 export function Sidebar({
@@ -65,6 +69,8 @@ export function Sidebar({
   onShowChat,
   onShowDiscover,
   onShowSettings,
+  onShowCodeBuilder,
+  isCodeBuilderView,
 }: SidebarProps) {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
@@ -163,23 +169,51 @@ export function Sidebar({
             <span>New chat</span>
           </button>
 
-          {/* Discover button */}
-          <button
-            onClick={onShowDiscover}
-            className={cn(
-              "w-full flex items-center justify-center gap-2.5 px-4 h-11 rounded-xl transition-all group mt-2",
-              "bg-gradient-to-br from-blue-500/10 to-indigo-500/10",
-              "border border-blue-500/20 hover:border-blue-400/40",
-              "shadow-sm hover:shadow-md hover:shadow-blue-500/10 active:scale-[0.98]",
-              "text-[14px] font-medium text-[var(--color-text-secondary)] hover:text-blue-400",
-            )}
-          >
-            <Compass
-              size={18}
-              className="text-blue-400 group-hover:rotate-45 transition-transform duration-300"
-            />
-            <span>Discover</span>
-          </button>
+          {/* Discover + CodeBuilder buttons */}
+          <div className="flex gap-2 mt-2">
+            <button
+              onClick={onShowDiscover}
+              className={cn(
+                "flex-1 flex items-center justify-center gap-2 px-3 h-11 rounded-xl transition-all group",
+                isCodeBuilderView
+                  ? "bg-gradient-to-br from-blue-500/10 to-indigo-500/10 border border-blue-500/20 hover:border-blue-400/40"
+                  : "bg-gradient-to-br from-blue-500/10 to-indigo-500/10 border border-blue-500/20 hover:border-blue-400/40",
+                "shadow-sm hover:shadow-md hover:shadow-blue-500/10 active:scale-[0.98]",
+                "text-[13px] font-medium text-[var(--color-text-secondary)] hover:text-blue-400",
+              )}
+            >
+              <Compass
+                size={16}
+                className="text-blue-400 group-hover:rotate-45 transition-transform duration-300"
+              />
+              <span>Discover</span>
+            </button>
+            <button
+              onClick={onShowCodeBuilder}
+              className={cn(
+                "flex-1 flex items-center justify-center gap-2 px-3 h-11 rounded-xl transition-all group",
+                isCodeBuilderView
+                  ? "bg-gradient-to-br from-violet-500/20 to-indigo-600/20 border border-violet-500/40 shadow-violet-500/10"
+                  : "bg-gradient-to-br from-violet-500/10 to-indigo-500/10 border border-violet-500/20 hover:border-violet-400/40",
+                "shadow-sm hover:shadow-md hover:shadow-violet-500/10 active:scale-[0.98]",
+                "text-[13px] font-medium",
+                isCodeBuilderView
+                  ? "text-violet-400"
+                  : "text-[var(--color-text-secondary)] hover:text-violet-400",
+              )}
+            >
+              <Code2
+                size={16}
+                className={cn(
+                  "transition-transform duration-300",
+                  isCodeBuilderView
+                    ? "text-violet-400"
+                    : "text-violet-400 group-hover:scale-110",
+                )}
+              />
+              <span>Builder</span>
+            </button>
+          </div>
 
           {/* View toggle: Chat vs Spaces */}
           <div className="mt-4 flex items-center gap-1.5 p-1 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)]">
