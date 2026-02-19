@@ -22,6 +22,115 @@ import {
   streamRefineCode,
 } from "@/services/codebuilder";
 
+// Well-known npm packages and their latest stable versions
+const KNOWN_PACKAGE_VERSIONS: Record<string, string> = {
+  "react-router-dom": "^6.26.0",
+  "react-router": "^6.26.0",
+  axios: "^1.7.7",
+  "lucide-react": "^0.400.0",
+  "framer-motion": "^11.5.0",
+  zustand: "^5.0.0",
+  "react-hook-form": "^7.53.0",
+  zod: "^3.23.8",
+  "date-fns": "^4.1.0",
+  "react-query": "^3.39.3",
+  "@tanstack/react-query": "^5.59.0",
+  clsx: "^2.1.1",
+  "class-variance-authority": "^0.7.0",
+  "tailwind-merge": "^2.5.0",
+  tailwindcss: "^3.4.13",
+  "@emotion/react": "^11.13.3",
+  "@emotion/styled": "^11.13.0",
+  "@mui/material": "^6.1.1",
+  "styled-components": "^6.1.13",
+  uuid: "^10.0.0",
+  "react-icons": "^5.3.0",
+  "react-toastify": "^10.0.5",
+  recharts: "^2.12.7",
+  "chart.js": "^4.4.4",
+  "react-chartjs-2": "^5.2.0",
+  lodash: "^4.17.21",
+  "lodash-es": "^4.17.21",
+  immer: "^10.1.1",
+  "react-dnd": "^16.0.1",
+  "react-dnd-html5-backend": "^16.0.1",
+};
+
+/**
+ * Scan generated source files for npm imports and return a package.json
+ * that includes all detected third-party dependencies.
+ */
+function buildPackageJsonFromFiles(
+  files: CodeFile[],
+  projectName: string,
+): string {
+  // Find an AI-provided package.json first
+  const aiPkgFile = files.find(
+    (f) => f.path === "package.json" || f.path.endsWith("/package.json"),
+  );
+  if (aiPkgFile) {
+    try {
+      const parsed = JSON.parse(aiPkgFile.content);
+      // Ensure devDeps have vite + react plugin
+      parsed.devDependencies = {
+        "@vitejs/plugin-react": "^4.3.4",
+        vite: "^5.4.10",
+        ...parsed.devDependencies,
+      };
+      parsed.scripts = { dev: "vite", build: "vite build", ...parsed.scripts };
+      return JSON.stringify(parsed, null, 2);
+    } catch {
+      // fall through to auto-detect
+    }
+  }
+
+  // Auto-detect imports from source files
+  const sourceFiles = files.filter((f) => /\.(jsx?|tsx?)$/.test(f.path));
+
+  const detectedPackages = new Set<string>();
+  const importRe =
+    /(?:import\s+(?:.+?\s+from\s+)?['"]|require\s*\(\s*['"])([^'"./][^'"]*)['"]/g;
+
+  for (const f of sourceFiles) {
+    let match: RegExpExecArray | null;
+    while ((match = importRe.exec(f.content)) !== null) {
+      const pkg = match[1];
+      // Normalise scoped (@org/pkg) vs plain (pkg)
+      const root = pkg.startsWith("@")
+        ? pkg.split("/").slice(0, 2).join("/")
+        : pkg.split("/")[0];
+      if (root && !["react", "react-dom"].includes(root)) {
+        detectedPackages.add(root);
+      }
+    }
+  }
+
+  const extraDeps: Record<string, string> = {};
+  for (const pkg of detectedPackages) {
+    extraDeps[pkg] = KNOWN_PACKAGE_VERSIONS[pkg] ?? "latest";
+  }
+
+  return JSON.stringify(
+    {
+      name: projectName.replace(/\s+/g, "-").toLowerCase() || "react-app",
+      version: "0.0.0",
+      private: true,
+      scripts: { dev: "vite", build: "vite build" },
+      dependencies: {
+        react: "^18.3.1",
+        "react-dom": "^18.3.1",
+        ...extraDeps,
+      },
+      devDependencies: {
+        "@vitejs/plugin-react": "^4.3.4",
+        vite: "^5.4.10",
+      },
+    },
+    null,
+    2,
+  );
+}
+
 // Default React template shown before any project is generated
 const DEFAULT_TEMPLATE_FILES: Record<string, string> = {
   "src/App.jsx": `export default function App() {
@@ -82,14 +191,6 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({ plugins: [react()] });
 `,
 };
-
-function filesToRecord(files: CodeFile[]): Record<string, string> {
-  const record: Record<string, string> = { ...DEFAULT_TEMPLATE_FILES };
-  for (const f of files) {
-    record[f.path] = f.content;
-  }
-  return record;
-}
 
 interface CodeBuilderSectionProps {
   onBack?: () => void;
@@ -168,42 +269,64 @@ export function CodeBuilderSection({ onBack }: CodeBuilderSectionProps) {
     logEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [streamLog]);
 
-  const updateEmbedFiles = useCallback(
-    async (files: CodeFile[], title: string) => {
-      if (!vmRef.current) return;
-      try {
-        const fileMap = filesToRecord(files);
-        await vmRef.current.applyFsDiff({
-          create: fileMap,
-          destroy: [],
-        });
-      } catch {
-        // VM may not support applyFsDiff; remount into the stable wrapper
-        const wrapper = embedWrapperRef.current;
-        if (!wrapper) return;
-        wrapper.innerHTML = "";
-        const mountTarget = document.createElement("div");
-        mountTarget.style.cssText = "width:100%;height:100%";
-        wrapper.appendChild(mountTarget);
-        vmRef.current = await sdk.embedProject(
-          mountTarget,
-          {
-            title,
-            template: "node",
-            files: filesToRecord(files),
-          },
-          {
-            height: "100%",
-            hideNavigation: false,
-            forceEmbedLayout: true,
-            openFile: files[0]?.path || "src/App.jsx",
-            view: "preview",
-            theme: "dark",
-          },
-        );
-      }
+  // Build a fresh StackBlitz embed inside the stable wrapper div
+  const remountEmbed = useCallback(
+    async (files: Record<string, string>, openFile: string, title: string) => {
+      const wrapper = embedWrapperRef.current;
+      if (!wrapper) return;
+      wrapper.innerHTML = "";
+      const mountTarget = document.createElement("div");
+      mountTarget.style.cssText = "width:100%;height:100%";
+      wrapper.appendChild(mountTarget);
+      vmRef.current = await sdk.embedProject(
+        mountTarget,
+        { title, template: "node", files },
+        {
+          height: "100%",
+          hideNavigation: false,
+          forceEmbedLayout: true,
+          openFile,
+          view: "default",
+          theme: "dark",
+        },
+      );
     },
     [],
+  );
+
+  const updateEmbedFiles = useCallback(
+    async (files: CodeFile[], title: string) => {
+      // Pick the best file to focus: prefer App.jsx/tsx, then first jsx/js
+      const mainFile =
+        files.find(
+          (f) => f.path === "src/App.jsx" || f.path === "src/App.tsx",
+        ) ??
+        files.find(
+          (f) =>
+            f.path.endsWith(".jsx") ||
+            f.path.endsWith(".tsx") ||
+            f.path.endsWith(".js"),
+        ) ??
+        files[0];
+      const openPath = mainFile?.path ?? "src/App.jsx";
+
+      // Build the full file set: start with defaults, overlay AI-generated files
+      const allFiles: Record<string, string> = { ...DEFAULT_TEMPLATE_FILES };
+
+      for (const f of files) {
+        // Skip AI's package.json — we build our own below with detected deps
+        if (f.path === "package.json") continue;
+        allFiles[f.path] = f.content;
+      }
+
+      // Always build a correct package.json from detected imports
+      allFiles["package.json"] = buildPackageJsonFromFiles(files, title);
+
+      // Always do a full remount so WebContainers runs a fresh npm install
+      // with all required dependencies properly resolved
+      await remountEmbed(allFiles, openPath, title);
+    },
+    [remountEmbed],
   );
 
   const handleGenerate = useCallback(async () => {
@@ -312,14 +435,16 @@ export function CodeBuilderSection({ onBack }: CodeBuilderSectionProps) {
     abortRef.current?.abort();
   };
 
-  const handleNewProject = () => {
+  const handleNewProject = useCallback(() => {
     setGeneratedFiles([]);
     setStreamLog("");
     setError(null);
     setPrompt("");
     setRefineFeedback("");
     setProjectName("my-app");
-  };
+    // Reset the StackBlitz embed back to the welcome placeholder
+    remountEmbed(DEFAULT_TEMPLATE_FILES, "src/App.jsx", "Code Builder");
+  }, [remountEmbed]);
 
   return (
     <div className="flex flex-col h-full bg-[var(--color-bg)] text-[var(--color-text-primary)]">
