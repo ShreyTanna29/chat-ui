@@ -109,21 +109,33 @@ export function CodeBuilderSection({ onBack }: CodeBuilderSectionProps) {
   const [refineFeedback, setRefineFeedback] = useState("");
   const [isRefining, setIsRefining] = useState(false);
 
-  const embedContainerRef = useRef<HTMLDivElement>(null);
+  // Stable outer wrapper — React manages this ref, StackBlitz never touches it
+  const embedWrapperRef = useRef<HTMLDivElement>(null);
   const vmRef = useRef<VM | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const logEndRef = useRef<HTMLDivElement>(null);
 
   const hasProject = generatedFiles.length > 0;
 
-  // Mount StackBlitz with default template on first render
+  // Mount StackBlitz with default template on first render.
+  // We create a fresh inner div each run so React Strict Mode's double-invoke
+  // doesn't pass a detached element (no parentNode) to the SDK.
   useEffect(() => {
-    if (!embedContainerRef.current) return;
+    const wrapper = embedWrapperRef.current;
+    if (!wrapper) return;
+
+    // Clear any previous iframe injected by the SDK
+    wrapper.innerHTML = "";
+
+    // Fresh mount target – the SDK will replace this div with an <iframe>
+    const mountTarget = document.createElement("div");
+    mountTarget.style.cssText = "width:100%;height:100%";
+    wrapper.appendChild(mountTarget);
 
     let isMounted = true;
     sdk
       .embedProject(
-        embedContainerRef.current,
+        mountTarget,
         {
           title: "Code Builder",
           template: "node",
@@ -147,6 +159,7 @@ export function CodeBuilderSection({ onBack }: CodeBuilderSectionProps) {
 
     return () => {
       isMounted = false;
+      vmRef.current = null;
     };
   }, []);
 
@@ -165,10 +178,15 @@ export function CodeBuilderSection({ onBack }: CodeBuilderSectionProps) {
           destroy: [],
         });
       } catch {
-        // VM may not support applyFsDiff; remount instead
-        if (!embedContainerRef.current) return;
+        // VM may not support applyFsDiff; remount into the stable wrapper
+        const wrapper = embedWrapperRef.current;
+        if (!wrapper) return;
+        wrapper.innerHTML = "";
+        const mountTarget = document.createElement("div");
+        mountTarget.style.cssText = "width:100%;height:100%";
+        wrapper.appendChild(mountTarget);
         vmRef.current = await sdk.embedProject(
-          embedContainerRef.current,
+          mountTarget,
           {
             title,
             template: "node",
@@ -625,7 +643,7 @@ export function CodeBuilderSection({ onBack }: CodeBuilderSectionProps) {
           )}
 
           {/* StackBlitz container */}
-          <div ref={embedContainerRef} className="w-full h-full" />
+          <div ref={embedWrapperRef} className="w-full h-full" />
         </div>
       </div>
     </div>
