@@ -298,7 +298,7 @@ export function CodeBuilderSection({ onBack }: CodeBuilderSectionProps) {
           hideNavigation: false,
           forceEmbedLayout: true,
           openFile,
-          view: "default",
+          view: "preview",
           theme: "dark",
         },
       );
