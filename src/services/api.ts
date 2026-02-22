@@ -140,10 +140,13 @@ export async function apiRawFetch(
 ): Promise<Response> {
   const token = getAccessToken();
 
+  // Don't set Content-Type for FormData - browser will set it with correct boundary
+  const isFormData = options?.body instanceof FormData;
+
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
     ...options,
     headers: {
-      "Content-Type": "application/json",
+      ...(!isFormData && { "Content-Type": "application/json" }),
       ...(token && { Authorization: `Bearer ${token}` }),
       ...options?.headers,
     },

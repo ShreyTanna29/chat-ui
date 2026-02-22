@@ -14,6 +14,8 @@ import {
   X,
   Send,
   Wrench,
+  ImagePlus,
+  Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -206,9 +208,19 @@ export function CodeBuilderSection({ onBack }: CodeBuilderSectionProps) {
   const [showLog, setShowLog] = useState(false);
   const [showFiles, setShowFiles] = useState(false);
 
+  // Image upload for generation
+  const [generateImage, setGenerateImage] = useState<File | null>(null);
+  const [generateImagePreview, setGenerateImagePreview] = useState<
+    string | null
+  >(null);
+
   // Refine mode
   const [refineFeedback, setRefineFeedback] = useState("");
   const [isRefining, setIsRefining] = useState(false);
+  const [refineImage, setRefineImage] = useState<File | null>(null);
+  const [refineImagePreview, setRefineImagePreview] = useState<string | null>(
+    null,
+  );
 
   // Stable outer wrapper — React manages this ref, StackBlitz never touches it
   const embedWrapperRef = useRef<HTMLDivElement>(null);
@@ -346,6 +358,7 @@ export function CodeBuilderSection({ onBack }: CodeBuilderSectionProps) {
       for await (const event of streamGenerateCode(
         prompt.trim(),
         projectName.trim() || "react-app",
+        generateImage || undefined,
         abort.signal,
       )) {
         if (event.type === "chunk") {
@@ -369,8 +382,11 @@ export function CodeBuilderSection({ onBack }: CodeBuilderSectionProps) {
     } finally {
       setIsGenerating(false);
       abortRef.current = null;
+      // Clear image after generation
+      setGenerateImage(null);
+      setGenerateImagePreview(null);
     }
-  }, [prompt, projectName, isGenerating, updateEmbedFiles]);
+  }, [prompt, projectName, isGenerating, generateImage, updateEmbedFiles]);
 
   const handleRefine = useCallback(async () => {
     if (!refineFeedback.trim() || isRefining || generatedFiles.length === 0)
@@ -393,6 +409,7 @@ export function CodeBuilderSection({ onBack }: CodeBuilderSectionProps) {
       for await (const event of streamRefineCode(
         current,
         refineFeedback.trim(),
+        refineImage || undefined,
         abort.signal,
       )) {
         if (event.type === "chunk") {
@@ -422,12 +439,16 @@ export function CodeBuilderSection({ onBack }: CodeBuilderSectionProps) {
     } finally {
       setIsRefining(false);
       abortRef.current = null;
+      // Clear image after refinement
+      setRefineImage(null);
+      setRefineImagePreview(null);
     }
   }, [
     refineFeedback,
     isRefining,
     generatedFiles,
     projectName,
+    refineImage,
     updateEmbedFiles,
   ]);
 
@@ -442,6 +463,10 @@ export function CodeBuilderSection({ onBack }: CodeBuilderSectionProps) {
     setPrompt("");
     setRefineFeedback("");
     setProjectName("my-app");
+    setGenerateImage(null);
+    setGenerateImagePreview(null);
+    setRefineImage(null);
+    setRefineImagePreview(null);
     // Reset the StackBlitz embed back to the welcome placeholder
     remountEmbed(DEFAULT_TEMPLATE_FILES, "src/App.jsx", "Code Builder");
   }, [remountEmbed]);
@@ -542,6 +567,83 @@ export function CodeBuilderSection({ onBack }: CodeBuilderSectionProps) {
                     {prompt.length}/5000 · ⌘↵ to generate
                   </span>
                 </div>
+              </div>
+
+              {/* Image Upload */}
+              <div>
+                <label className="block text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-2">
+                  Design Image (Optional)
+                </label>
+                {!generateImagePreview ? (
+                  <label
+                    className={cn(
+                      "flex flex-col items-center justify-center gap-2 px-4 py-6 rounded-xl cursor-pointer transition-all",
+                      "border-2 border-dashed border-[var(--color-border)] hover:border-violet-500/50",
+                      "bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)]",
+                    )}
+                  >
+                    <ImagePlus
+                      size={24}
+                      className="text-[var(--color-text-muted)]"
+                    />
+                    <div className="text-center">
+                      <p className="text-xs font-medium text-[var(--color-text-secondary)]">
+                        Upload mockup or design
+                      </p>
+                      <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5">
+                        PNG, JPG, GIF, WebP · Max 10MB
+                      </p>
+                    </div>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          if (file.size > 10 * 1024 * 1024) {
+                            setError("Image must be less than 10MB");
+                            return;
+                          }
+                          setGenerateImage(file);
+                          const reader = new FileReader();
+                          reader.onload = (e) => {
+                            setGenerateImagePreview(e.target?.result as string);
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                    />
+                  </label>
+                ) : (
+                  <div className="relative rounded-xl overflow-hidden border border-[var(--color-border)]">
+                    <img
+                      src={generateImagePreview}
+                      alt="Upload preview"
+                      className="w-full h-auto max-h-48 object-contain bg-[var(--color-surface)]"
+                    />
+                    <button
+                      onClick={() => {
+                        setGenerateImage(null);
+                        setGenerateImagePreview(null);
+                      }}
+                      className={cn(
+                        "absolute top-2 right-2 p-1.5 rounded-lg",
+                        "bg-red-500/90 hover:bg-red-500 text-white transition-colors",
+                      )}
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                    {generateImage && (
+                      <div className="px-3 py-2 bg-[var(--color-surface)] border-t border-[var(--color-border)]">
+                        <p className="text-[10px] text-[var(--color-text-muted)] truncate">
+                          {generateImage.name} ·{" "}
+                          {(generateImage.size / 1024).toFixed(1)} KB
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {error && (
@@ -670,6 +772,83 @@ export function CodeBuilderSection({ onBack }: CodeBuilderSectionProps) {
                     {refineFeedback.length}/2000 · ⌘↵ to apply
                   </span>
                 </div>
+              </div>
+
+              {/* Image Upload for Refine */}
+              <div>
+                <label className="block text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-2">
+                  Reference Image (Optional)
+                </label>
+                {!refineImagePreview ? (
+                  <label
+                    className={cn(
+                      "flex flex-col items-center justify-center gap-2 px-4 py-6 rounded-xl cursor-pointer transition-all",
+                      "border-2 border-dashed border-[var(--color-border)] hover:border-violet-500/50",
+                      "bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)]",
+                    )}
+                  >
+                    <ImagePlus
+                      size={24}
+                      className="text-[var(--color-text-muted)]"
+                    />
+                    <div className="text-center">
+                      <p className="text-xs font-medium text-[var(--color-text-secondary)]">
+                        Upload design reference
+                      </p>
+                      <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5">
+                        PNG, JPG, GIF, WebP · Max 10MB
+                      </p>
+                    </div>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          if (file.size > 10 * 1024 * 1024) {
+                            setError("Image must be less than 10MB");
+                            return;
+                          }
+                          setRefineImage(file);
+                          const reader = new FileReader();
+                          reader.onload = (e) => {
+                            setRefineImagePreview(e.target?.result as string);
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                    />
+                  </label>
+                ) : (
+                  <div className="relative rounded-xl overflow-hidden border border-[var(--color-border)]">
+                    <img
+                      src={refineImagePreview}
+                      alt="Upload preview"
+                      className="w-full h-auto max-h-48 object-contain bg-[var(--color-surface)]"
+                    />
+                    <button
+                      onClick={() => {
+                        setRefineImage(null);
+                        setRefineImagePreview(null);
+                      }}
+                      className={cn(
+                        "absolute top-2 right-2 p-1.5 rounded-lg",
+                        "bg-red-500/90 hover:bg-red-500 text-white transition-colors",
+                      )}
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                    {refineImage && (
+                      <div className="px-3 py-2 bg-[var(--color-surface)] border-t border-[var(--color-border)]">
+                        <p className="text-[10px] text-[var(--color-text-muted)] truncate">
+                          {refineImage.name} ·{" "}
+                          {(refineImage.size / 1024).toFixed(1)} KB
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {error && (

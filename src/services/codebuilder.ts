@@ -42,11 +42,19 @@ async function* parseSSEStream(
 export async function* streamGenerateCode(
   prompt: string,
   projectName?: string,
+  image?: File,
   signal?: AbortSignal,
 ): AsyncGenerator<StreamEvent> {
+  const formData = new FormData();
+  formData.append("prompt", prompt);
+  formData.append("projectName", projectName || "react-app");
+  if (image) {
+    formData.append("image", image);
+  }
+
   const response = await apiRawFetch("/api/codebuilder/generate", {
     method: "POST",
-    body: JSON.stringify({ prompt, projectName: projectName || "react-app" }),
+    body: formData,
     signal,
   });
 
@@ -60,11 +68,19 @@ export async function* streamGenerateCode(
 export async function* streamRefineCode(
   files: Pick<CodeFile, "path" | "content">[],
   feedback: string,
+  image?: File,
   signal?: AbortSignal,
 ): AsyncGenerator<StreamEvent> {
+  const formData = new FormData();
+  formData.append("files", JSON.stringify(files));
+  formData.append("feedback", feedback);
+  if (image) {
+    formData.append("image", image);
+  }
+
   const response = await apiRawFetch("/api/codebuilder/refine", {
     method: "POST",
-    body: JSON.stringify({ files, feedback }),
+    body: formData,
     signal,
   });
 
