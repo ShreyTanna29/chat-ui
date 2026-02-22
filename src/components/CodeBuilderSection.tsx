@@ -483,8 +483,8 @@ export function CodeBuilderSection({ onBack }: CodeBuilderSectionProps) {
             <X size={18} />
           </button>
         )}
-        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-violet-500/20">
-          <Code2 size={18} className="text-white" />
+        <div className="w-9 h-9 rounded-xl bg-white flex items-center justify-center shadow-lg shadow-black/20">
+          <Code2 size={18} className="text-black" />
         </div>
         <div>
           <h1 className="text-base font-bold text-[var(--color-text-primary)]">
@@ -533,7 +533,7 @@ export function CodeBuilderSection({ onBack }: CodeBuilderSectionProps) {
                     "w-full px-3 py-2.5 rounded-xl text-sm",
                     "bg-[var(--color-surface)] border border-[var(--color-border)]",
                     "text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)]",
-                    "focus:outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/20",
+                    "focus:outline-none focus:border-white/50 focus:ring-1 focus:ring-white/20",
                     "transition-all duration-200",
                   )}
                 />
@@ -553,7 +553,7 @@ export function CodeBuilderSection({ onBack }: CodeBuilderSectionProps) {
                     "flex-1 w-full px-3 py-2.5 rounded-xl text-sm resize-none",
                     "bg-[var(--color-surface)] border border-[var(--color-border)]",
                     "text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)]",
-                    "focus:outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/20",
+                    "focus:outline-none focus:border-white/50 focus:ring-1 focus:ring-white/20",
                     "transition-all duration-200",
                   )}
                   onKeyDown={(e) => {
@@ -578,7 +578,7 @@ export function CodeBuilderSection({ onBack }: CodeBuilderSectionProps) {
                   <label
                     className={cn(
                       "flex flex-col items-center justify-center gap-2 px-4 py-6 rounded-xl cursor-pointer transition-all",
-                      "border-2 border-dashed border-[var(--color-border)] hover:border-violet-500/50",
+                      "border-2 border-dashed border-[var(--color-border)] hover:border-white/50",
                       "bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)]",
                     )}
                   >
@@ -661,7 +661,7 @@ export function CodeBuilderSection({ onBack }: CodeBuilderSectionProps) {
                   "shadow-sm hover:shadow-md active:scale-[0.98]",
                   isGenerating
                     ? "bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20"
-                    : "bg-gradient-to-br from-violet-500 to-indigo-600 text-white hover:from-violet-400 hover:to-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:from-violet-500 disabled:hover:to-indigo-600",
+                    : "bg-white text-black hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white",
                 )}
               >
                 {isGenerating ? (
@@ -734,7 +734,7 @@ export function CodeBuilderSection({ onBack }: CodeBuilderSectionProps) {
                       >
                         <FileCode
                           size={11}
-                          className="flex-shrink-0 text-violet-400"
+                          className="flex-shrink-0 text-gray-400"
                         />
                         <span className="font-mono truncate">{f.path}</span>
                       </div>
@@ -758,7 +758,7 @@ export function CodeBuilderSection({ onBack }: CodeBuilderSectionProps) {
                     "flex-1 w-full px-3 py-2.5 rounded-xl text-sm resize-none",
                     "bg-[var(--color-surface)] border border-[var(--color-border)]",
                     "text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)]",
-                    "focus:outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/20",
+                    "focus:outline-none focus:border-white/50 focus:ring-1 focus:ring-white/20",
                     "transition-all duration-200",
                   )}
                   onKeyDown={(e) => {
@@ -783,7 +783,7 @@ export function CodeBuilderSection({ onBack }: CodeBuilderSectionProps) {
                   <label
                     className={cn(
                       "flex flex-col items-center justify-center gap-2 px-4 py-6 rounded-xl cursor-pointer transition-all",
-                      "border-2 border-dashed border-[var(--color-border)] hover:border-violet-500/50",
+                      "border-2 border-dashed border-[var(--color-border)] hover:border-white/50",
                       "bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)]",
                     )}
                   >
@@ -867,7 +867,7 @@ export function CodeBuilderSection({ onBack }: CodeBuilderSectionProps) {
                     "shadow-sm hover:shadow-md active:scale-[0.98]",
                     isRefining
                       ? "bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20"
-                      : "bg-gradient-to-br from-violet-500 to-indigo-600 text-white hover:from-violet-400 hover:to-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed",
+                      : "bg-white text-black hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed",
                   )}
                 >
                   {isRefining ? (
@@ -932,11 +932,11 @@ export function CodeBuilderSection({ onBack }: CodeBuilderSectionProps) {
           {/* Loading overlay while generating */}
           {(isGenerating || isRefining) && (
             <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-[#1a1a2e]/80 backdrop-blur-sm gap-4">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-500/20 to-indigo-600/20 border border-violet-500/30 flex items-center justify-center">
-                <Loader2 size={28} className="text-violet-400 animate-spin" />
+              <div className="w-16 h-16 rounded-2xl bg-white/10 border border-white/30 flex items-center justify-center">
+                <Loader2 size={28} className="text-white animate-spin" />
               </div>
               <div className="text-center">
-                <p className="text-sm font-semibold text-violet-300">
+                <p className="text-sm font-semibold text-white">
                   {isGenerating ? "Generating your app…" : "Applying changes…"}
                 </p>
                 <p className="text-xs text-[var(--color-text-muted)] mt-1">
