@@ -238,160 +238,205 @@ ${message}`
             </div>
 
             {/* Title with enhanced gradient */}
-            <h1 className="text-4xl sm:text-5xl font-bold mb-4 text-center animate-slide-up tracking-tight leading-tight">
-              <span className="gradient-text">How can I help you today?</span>
-            </h1>
-            <p
-              className="text-[var(--color-text-secondary)] mb-10 text-center max-w-lg text-base animate-slide-up leading-relaxed"
-              style={{ animationDelay: "100ms" }}
-            >
-              I'm{" "}
-              <span className="font-semibold text-[var(--color-text-primary)]">
-                Erudite
-              </span>
-              , your AI assistant. Ask me anything from complex coding questions
-              to creative writing ideas.
-            </p>
-
-            {/* Premium redesigned suggestion cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 w-full max-w-5xl mb-10">
-              {suggestions.map((suggestion, index) => (
-                <button
-                  key={index}
-                  onClick={() =>
-                    onSend(`${suggestion.title} ${suggestion.description}`)
-                  }
-                  style={{ animationDelay: `${200 + index * 50}ms` }}
-                  className={cn(
-                    "group relative flex flex-col items-start gap-4 p-6 rounded-2xl text-left transition-all duration-500 animate-scale-in h-full overflow-hidden",
-                    "hover:scale-[1.02] hover:-translate-y-1 active:scale-[0.98]",
-                  )}
+            {spaceName ? (
+              <>
+                <div
+                  className="flex items-center gap-2 mb-3 animate-slide-up"
+                  style={{ animationDelay: "50ms" }}
                 >
-                  {/* Glassmorphic background layer */}
-                  <div className="absolute inset-0 bg-gradient-to-br from-white/[0.07] to-white/[0.02] backdrop-blur-xl" />
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30">
+                    <Folder size={14} className="text-emerald-400" />
+                    <span className="text-xs font-medium text-emerald-400">
+                      {spaceName}
+                    </span>
+                  </div>
+                </div>
+                <h1 className="text-4xl sm:text-5xl font-bold mb-4 text-center animate-slide-up tracking-tight leading-tight">
+                  <span className="gradient-text">What's on your mind?</span>
+                </h1>
+                <p
+                  className="text-[var(--color-text-secondary)] mb-10 text-center max-w-lg text-base animate-slide-up leading-relaxed"
+                  style={{ animationDelay: "100ms" }}
+                >
+                  You're working inside the{" "}
+                  <span className="font-semibold text-[var(--color-text-primary)]">
+                    {spaceName}
+                  </span>{" "}
+                  space. Every conversation here shares the same context and
+                  instructions.
+                </p>
+                <div
+                  className="flex flex-col items-center gap-3 w-full max-w-lg mb-10 animate-slide-up"
+                  style={{ animationDelay: "150ms" }}
+                >
+                  <div className="w-full px-5 py-4 rounded-2xl bg-[var(--color-surface)] border border-emerald-500/20 text-sm text-[var(--color-text-secondary)] text-center leading-relaxed">
+                    <span className="text-emerald-400 font-medium">Tip:</span>{" "}
+                    Messages you send here will use the space's default
+                    instructions. Just type below to get started.
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <h1 className="text-4xl sm:text-5xl font-bold mb-4 text-center animate-slide-up tracking-tight leading-tight">
+                  <span className="gradient-text">
+                    How can I help you today?
+                  </span>
+                </h1>
+                <p
+                  className="text-[var(--color-text-secondary)] mb-10 text-center max-w-lg text-base animate-slide-up leading-relaxed"
+                  style={{ animationDelay: "100ms" }}
+                >
+                  I'm{" "}
+                  <span className="font-semibold text-[var(--color-text-primary)]">
+                    Erudite
+                  </span>
+                  , your AI assistant. Ask me anything from complex coding
+                  questions to creative writing ideas.
+                </p>
 
-                  {/* Animated gradient border */}
-                  <div
-                    className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-                    style={{
-                      background: `linear-gradient(135deg, ${suggestion.glowColor.replace(
-                        "0.15",
-                        "0.3",
-                      )}, transparent 60%)`,
-                      padding: "1px",
-                      WebkitMask:
-                        "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
-                      WebkitMaskComposite: "xor",
-                      maskComposite: "exclude",
-                    }}
-                  />
+                {/* Premium redesigned suggestion cards */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 w-full max-w-5xl mb-10">
+                  {suggestions.map((suggestion, index) => (
+                    <button
+                      key={index}
+                      onClick={() =>
+                        onSend(`${suggestion.title} ${suggestion.description}`)
+                      }
+                      style={{ animationDelay: `${200 + index * 50}ms` }}
+                      className={cn(
+                        "group relative flex flex-col items-start gap-4 p-6 rounded-2xl text-left transition-all duration-500 animate-scale-in h-full overflow-hidden",
+                        "hover:scale-[1.02] hover:-translate-y-1 active:scale-[0.98]",
+                      )}
+                    >
+                      {/* Glassmorphic background layer */}
+                      <div className="absolute inset-0 bg-gradient-to-br from-white/[0.07] to-white/[0.02] backdrop-blur-xl" />
 
-                  {/* Static border */}
-                  <div className="absolute inset-0 rounded-2xl border border-white/10 group-hover:border-transparent transition-colors duration-500" />
-
-                  {/* Radial glow on hover */}
-                  <div
-                    className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none blur-2xl"
-                    style={{
-                      background: `radial-gradient(circle at 30% 30%, ${suggestion.glowColor.replace(
-                        "0.15",
-                        "0.25",
-                      )}, transparent 60%)`,
-                    }}
-                  />
-
-                  {/* Content container */}
-                  <div className="relative z-10 w-full flex flex-col gap-4">
-                    {/* Icon container with enhanced glow */}
-                    <div className="flex items-center justify-between">
+                      {/* Animated gradient border */}
                       <div
-                        className={cn(
-                          "relative p-3 rounded-xl transition-all duration-500",
-                          "bg-gradient-to-br from-white/10 to-white/5",
-                          "border border-white/10",
-                          "group-hover:scale-110 group-hover:rotate-3",
-                          "shadow-lg",
-                        )}
+                        className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"
                         style={{
-                          boxShadow: `0 4px 16px ${suggestion.glowColor.replace(
+                          background: `linear-gradient(135deg, ${suggestion.glowColor.replace(
                             "0.15",
-                            "0",
-                          )}, 0 0 0 0 ${suggestion.glowColor.replace(
-                            "0.15",
-                            "0",
-                          )}`,
-                          transition: "all 0.5s cubic-bezier(0.4, 0, 0.2, 1)",
+                            "0.3",
+                          )}, transparent 60%)`,
+                          padding: "1px",
+                          WebkitMask:
+                            "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
+                          WebkitMaskComposite: "xor",
+                          maskComposite: "exclude",
                         }}
-                      >
-                        {/* Icon glow effect on hover */}
+                      />
+
+                      {/* Static border */}
+                      <div className="absolute inset-0 rounded-2xl border border-white/10 group-hover:border-transparent transition-colors duration-500" />
+
+                      {/* Radial glow on hover */}
+                      <div
+                        className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none blur-2xl"
+                        style={{
+                          background: `radial-gradient(circle at 30% 30%, ${suggestion.glowColor.replace(
+                            "0.15",
+                            "0.25",
+                          )}, transparent 60%)`,
+                        }}
+                      />
+
+                      {/* Content container */}
+                      <div className="relative z-10 w-full flex flex-col gap-4">
+                        {/* Icon container with enhanced glow */}
+                        <div className="flex items-center justify-between">
+                          <div
+                            className={cn(
+                              "relative p-3 rounded-xl transition-all duration-500",
+                              "bg-gradient-to-br from-white/10 to-white/5",
+                              "border border-white/10",
+                              "group-hover:scale-110 group-hover:rotate-3",
+                              "shadow-lg",
+                            )}
+                            style={{
+                              boxShadow: `0 4px 16px ${suggestion.glowColor.replace(
+                                "0.15",
+                                "0",
+                              )}, 0 0 0 0 ${suggestion.glowColor.replace(
+                                "0.15",
+                                "0",
+                              )}`,
+                              transition:
+                                "all 0.5s cubic-bezier(0.4, 0, 0.2, 1)",
+                            }}
+                          >
+                            {/* Icon glow effect on hover */}
+                            <div
+                              className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-md"
+                              style={{
+                                background: suggestion.glowColor.replace(
+                                  "0.15",
+                                  "0.4",
+                                ),
+                              }}
+                            />
+                            <suggestion.icon
+                              size={22}
+                              className={cn(
+                                suggestion.iconColor,
+                                "relative z-10 transition-all duration-500",
+                                "group-hover:drop-shadow-[0_0_8px_currentColor]",
+                              )}
+                            />
+                          </div>
+
+                          {/* Arrow with smooth entrance */}
+                          <ArrowUpRight
+                            size={20}
+                            className={cn(
+                              suggestion.iconColor,
+                              "opacity-0 scale-75 -translate-x-2 translate-y-2",
+                              "transition-all duration-500",
+                              "group-hover:opacity-70 group-hover:scale-100 group-hover:translate-x-0 group-hover:translate-y-0",
+                            )}
+                          />
+                        </div>
+
+                        {/* Text content with improved typography */}
+                        <div className="flex flex-col gap-2">
+                          <h3
+                            className={cn(
+                              "font-semibold text-base text-[var(--color-text-primary)]",
+                              "transition-all duration-500",
+                              "group-hover:translate-x-0.5",
+                            )}
+                          >
+                            {suggestion.title}
+                          </h3>
+                          <p
+                            className={cn(
+                              "text-[var(--color-text-secondary)] text-sm leading-relaxed",
+                              "opacity-70 group-hover:opacity-100",
+                              "transition-all duration-500",
+                              "group-hover:translate-x-0.5",
+                            )}
+                          >
+                            {suggestion.description}
+                          </p>
+                        </div>
+
+                        {/* Subtle accent line at bottom */}
                         <div
-                          className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-md"
+                          className="h-0.5 w-0 group-hover:w-full transition-all duration-700 rounded-full"
                           style={{
-                            background: suggestion.glowColor.replace(
+                            background: `linear-gradient(90deg, ${suggestion.glowColor.replace(
                               "0.15",
-                              "0.4",
-                            ),
+                              "0.6",
+                            )}, transparent)`,
                           }}
                         />
-                        <suggestion.icon
-                          size={22}
-                          className={cn(
-                            suggestion.iconColor,
-                            "relative z-10 transition-all duration-500",
-                            "group-hover:drop-shadow-[0_0_8px_currentColor]",
-                          )}
-                        />
                       </div>
-
-                      {/* Arrow with smooth entrance */}
-                      <ArrowUpRight
-                        size={20}
-                        className={cn(
-                          suggestion.iconColor,
-                          "opacity-0 scale-75 -translate-x-2 translate-y-2",
-                          "transition-all duration-500",
-                          "group-hover:opacity-70 group-hover:scale-100 group-hover:translate-x-0 group-hover:translate-y-0",
-                        )}
-                      />
-                    </div>
-
-                    {/* Text content with improved typography */}
-                    <div className="flex flex-col gap-2">
-                      <h3
-                        className={cn(
-                          "font-semibold text-base text-[var(--color-text-primary)]",
-                          "transition-all duration-500",
-                          "group-hover:translate-x-0.5",
-                        )}
-                      >
-                        {suggestion.title}
-                      </h3>
-                      <p
-                        className={cn(
-                          "text-[var(--color-text-secondary)] text-sm leading-relaxed",
-                          "opacity-70 group-hover:opacity-100",
-                          "transition-all duration-500",
-                          "group-hover:translate-x-0.5",
-                        )}
-                      >
-                        {suggestion.description}
-                      </p>
-                    </div>
-
-                    {/* Subtle accent line at bottom */}
-                    <div
-                      className="h-0.5 w-0 group-hover:w-full transition-all duration-700 rounded-full"
-                      style={{
-                        background: `linear-gradient(90deg, ${suggestion.glowColor.replace(
-                          "0.15",
-                          "0.6",
-                        )}, transparent)`,
-                      }}
-                    />
-                  </div>
-                </button>
-              ))}
-            </div>
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         ) : (
           /* Messages list */
