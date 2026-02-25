@@ -16,6 +16,8 @@ import {
   Wrench,
   ImagePlus,
   Trash2,
+  Bug,
+  MessageSquareText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -198,6 +200,39 @@ interface CodeBuilderSectionProps {
   onBack?: () => void;
 }
 
+type ActiveMode = "refine" | "refactor" | "fix" | "explain";
+
+const MODE_CONFIG: Record<ActiveMode, { icon: typeof Wrench; label: string; placeholder: string; color: string; activeColor: string }> = {
+  refine: {
+    icon: Wrench,
+    label: "Refine",
+    placeholder: "Describe changes you want…\n\ne.g. Add dark mode, improve the button styles, and add a search filter.",
+    color: "text-[var(--color-text-muted)]",
+    activeColor: "bg-white text-black",
+  },
+  refactor: {
+    icon: RefreshCw,
+    label: "Refactor",
+    placeholder: "Describe what to refactor…\n\ne.g. Extract the form logic into a custom hook and split the page into smaller components.",
+    color: "text-blue-400",
+    activeColor: "bg-blue-500 text-white",
+  },
+  fix: {
+    icon: Bug,
+    label: "Fix",
+    placeholder: "Describe the bug or issue to fix…\n\ne.g. The submit button doesn't disable while loading, causing duplicate submissions.",
+    color: "text-red-400",
+    activeColor: "bg-red-500 text-white",
+  },
+  explain: {
+    icon: MessageSquareText,
+    label: "Explain",
+    placeholder: "Ask a question about this code…\n\ne.g. How does the authentication flow work? What does the useEffect in App.tsx do?",
+    color: "text-emerald-400",
+    activeColor: "bg-emerald-500 text-white",
+  },
+};
+
 export function CodeBuilderSection({ onBack }: CodeBuilderSectionProps) {
   const [prompt, setPrompt] = useState("");
   const [projectName, setProjectName] = useState("my-app");
@@ -221,6 +256,12 @@ export function CodeBuilderSection({ onBack }: CodeBuilderSectionProps) {
   const [refineImagePreview, setRefineImagePreview] = useState<string | null>(
     null,
   );
+
+  // Active mode (refine / refactor / fix / explain)
+  const [activeMode, setActiveMode] = useState<ActiveMode>("refine");
+  const [explanation, setExplanation] = useState("");
+  const [isExplaining, setIsExplaining] = useState(false);
+  const [showExplanation, setShowExplanation] = useState(false);
 
   // Stable outer wrapper — React manages this ref, StackBlitz never touches it
   const embedWrapperRef = useRef<HTMLDivElement>(null);
@@ -396,6 +437,14 @@ export function CodeBuilderSection({ onBack }: CodeBuilderSectionProps) {
     setIsRefining(true);
     setShowLog(true);
 
+    // Prepend mode context to the feedback
+    let feedbackWithContext = refineFeedback.trim();
+    if (activeMode === "refactor") {
+      feedbackWithContext = `[REFACTOR REQUEST] ${feedbackWithContext}`;
+    } else if (activeMode === "fix") {
+      feedbackWithContext = `[BUG FIX REQUEST] ${feedbackWithContext}`;
+    }
+
     const abort = new AbortController();
     abortRef.current = abort;
 
@@ -408,7 +457,7 @@ export function CodeBuilderSection({ onBack }: CodeBuilderSectionProps) {
 
       for await (const event of streamRefineCode(
         current,
-        refineFeedback.trim(),
+        feedbackWithContext,
         refineImage || undefined,
         abort.signal,
       )) {
@@ -449,8 +498,55 @@ export function CodeBuilderSection({ onBack }: CodeBuilderSectionProps) {
     generatedFiles,
     projectName,
     refineImage,
+    activeMode,
     updateEmbedFiles,
   ]);
+
+  const handleExplain = useCallback(async () => {
+    if (!refineFeedback.trim() || isExplaining || generatedFiles.length === 0)
+      return;
+    setError(null);
+    setExplanation("");
+    setIsExplaining(true);
+    setShowExplanation(true);
+
+    const abort = new AbortController();
+    abortRef.current = abort;
+
+    try {
+      let accExplanation = "";
+      const current = generatedFiles.map(({ path, content }) => ({
+        path,
+        content,
+      }));
+
+      const explainPrompt = `[EXPLAIN ONLY — DO NOT MODIFY ANY CODE] Answer the following question about this codebase: ${refineFeedback.trim()}`;
+
+      for await (const event of streamRefineCode(
+        current,
+        explainPrompt,
+        undefined,
+        abort.signal,
+      )) {
+        if (event.type === "chunk") {
+          accExplanation += event.content;
+          setExplanation(accExplanation);
+        } else if (event.type === "complete") {
+          // Do NOT update code files — explanation only
+          setRefineFeedback("");
+        } else if (event.type === "error") {
+          setError(event.message);
+        }
+      }
+    } catch (err) {
+      if ((err as Error).name !== "AbortError") {
+        setError((err as Error).message || "Explain failed");
+      }
+    } finally {
+      setIsExplaining(false);
+      abortRef.current = null;
+    }
+  }, [refineFeedback, isExplaining, generatedFiles]);
 
   const handleStop = () => {
     abortRef.current?.abort();
@@ -467,9 +563,20 @@ export function CodeBuilderSection({ onBack }: CodeBuilderSectionProps) {
     setGenerateImagePreview(null);
     setRefineImage(null);
     setRefineImagePreview(null);
+    setActiveMode("refine");
+    setExplanation("");
+    setShowExplanation(false);
     // Reset the StackBlitz embed back to the welcome placeholder
     remountEmbed(DEFAULT_TEMPLATE_FILES, "src/App.jsx", "Code Builder");
   }, [remountEmbed]);
+
+  const handleModeSubmit = useCallback(() => {
+    if (activeMode === "explain") {
+      handleExplain();
+    } else {
+      handleRefine();
+    }
+  }, [activeMode, handleExplain, handleRefine]);
 
   return (
     <div className="flex flex-col h-full bg-[var(--color-bg)] text-[var(--color-text-primary)]">
@@ -743,15 +850,68 @@ export function CodeBuilderSection({ onBack }: CodeBuilderSectionProps) {
                 )}
               </div>
 
-              {/* Refine feedback */}
+              {/* Mode selector */}
+              <div className="flex rounded-xl border border-[var(--color-border)] overflow-hidden bg-[var(--color-surface)]">
+                {(Object.keys(MODE_CONFIG) as ActiveMode[]).map((mode) => {
+                  const config = MODE_CONFIG[mode];
+                  const Icon = config.icon;
+                  const isActive = activeMode === mode;
+                  return (
+                    <button
+                      key={mode}
+                      onClick={() => setActiveMode(mode)}
+                      className={cn(
+                        "flex-1 flex items-center justify-center gap-1.5 px-2 py-2 text-[11px] font-semibold transition-all duration-200",
+                        isActive
+                          ? config.activeColor
+                          : "text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)]",
+                      )}
+                    >
+                      <Icon size={13} />
+                      {config.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Explanation panel */}
+              {showExplanation && explanation && (
+                <div className="rounded-xl border border-emerald-500/20 overflow-hidden">
+                  <div className="flex items-center justify-between px-3 py-2 bg-emerald-500/10">
+                    <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-400">
+                      <MessageSquareText size={12} />
+                      Explanation
+                    </span>
+                    <button
+                      onClick={() => {
+                        setShowExplanation(false);
+                        setExplanation("");
+                      }}
+                      className="p-1 rounded-lg hover:bg-emerald-500/20 text-emerald-400 transition-colors"
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                  <div className="max-h-64 overflow-y-auto bg-[var(--color-bg)] px-3 py-3">
+                    <pre className="text-xs text-[var(--color-text-secondary)] font-sans whitespace-pre-wrap break-words leading-relaxed">
+                      {explanation}
+                    </pre>
+                    {isExplaining && (
+                      <span className="inline-block w-1.5 h-4 bg-emerald-400 animate-pulse ml-0.5 align-text-bottom" />
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Feedback textarea */}
               <div className="flex-1 flex flex-col">
                 <label className="block text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-2">
-                  Refine / Improve
+                  {MODE_CONFIG[activeMode].label}
                 </label>
                 <textarea
                   value={refineFeedback}
                   onChange={(e) => setRefineFeedback(e.target.value)}
-                  placeholder="Describe changes you want…&#10;&#10;e.g. Add dark mode, improve the button styles, and add a search filter."
+                  placeholder={MODE_CONFIG[activeMode].placeholder}
                   maxLength={2000}
                   rows={8}
                   className={cn(
@@ -763,7 +923,7 @@ export function CodeBuilderSection({ onBack }: CodeBuilderSectionProps) {
                   )}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-                      handleRefine();
+                      handleModeSubmit();
                     }
                   }}
                 />
@@ -774,82 +934,84 @@ export function CodeBuilderSection({ onBack }: CodeBuilderSectionProps) {
                 </div>
               </div>
 
-              {/* Image Upload for Refine */}
-              <div>
-                <label className="block text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-2">
-                  Reference Image (Optional)
-                </label>
-                {!refineImagePreview ? (
-                  <label
-                    className={cn(
-                      "flex flex-col items-center justify-center gap-2 px-4 py-6 rounded-xl cursor-pointer transition-all",
-                      "border-2 border-dashed border-[var(--color-border)] hover:border-white/50",
-                      "bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)]",
-                    )}
-                  >
-                    <ImagePlus
-                      size={24}
-                      className="text-[var(--color-text-muted)]"
-                    />
-                    <div className="text-center">
-                      <p className="text-xs font-medium text-[var(--color-text-secondary)]">
-                        Upload design reference
-                      </p>
-                      <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5">
-                        PNG, JPG, GIF, WebP · Max 10MB
-                      </p>
-                    </div>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          if (file.size > 10 * 1024 * 1024) {
-                            setError("Image must be less than 10MB");
-                            return;
-                          }
-                          setRefineImage(file);
-                          const reader = new FileReader();
-                          reader.onload = (e) => {
-                            setRefineImagePreview(e.target?.result as string);
-                          };
-                          reader.readAsDataURL(file);
-                        }
-                      }}
-                    />
+              {/* Image Upload for Refine (hidden in explain mode) */}
+              {activeMode !== "explain" && (
+                <div>
+                  <label className="block text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-2">
+                    Reference Image (Optional)
                   </label>
-                ) : (
-                  <div className="relative rounded-xl overflow-hidden border border-[var(--color-border)]">
-                    <img
-                      src={refineImagePreview}
-                      alt="Upload preview"
-                      className="w-full h-auto max-h-48 object-contain bg-[var(--color-surface)]"
-                    />
-                    <button
-                      onClick={() => {
-                        setRefineImage(null);
-                        setRefineImagePreview(null);
-                      }}
+                  {!refineImagePreview ? (
+                    <label
                       className={cn(
-                        "absolute top-2 right-2 p-1.5 rounded-lg",
-                        "bg-red-500/90 hover:bg-red-500 text-white transition-colors",
+                        "flex flex-col items-center justify-center gap-2 px-4 py-6 rounded-xl cursor-pointer transition-all",
+                        "border-2 border-dashed border-[var(--color-border)] hover:border-white/50",
+                        "bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)]",
                       )}
                     >
-                      <Trash2 size={14} />
-                    </button>
-                    {refineImage && (
-                      <div className="px-3 py-2 bg-[var(--color-surface)] border-t border-[var(--color-border)]">
-                        <p className="text-[10px] text-[var(--color-text-muted)] truncate">
-                          {refineImage.name} ·{" "}
-                          {(refineImage.size / 1024).toFixed(1)} KB
+                      <ImagePlus
+                        size={24}
+                        className="text-[var(--color-text-muted)]"
+                      />
+                      <div className="text-center">
+                        <p className="text-xs font-medium text-[var(--color-text-secondary)]">
+                          Upload design reference
+                        </p>
+                        <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5">
+                          PNG, JPG, GIF, WebP · Max 10MB
                         </p>
                       </div>
-                    )}
-                  </div>
-                )}
-              </div>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            if (file.size > 10 * 1024 * 1024) {
+                              setError("Image must be less than 10MB");
+                              return;
+                            }
+                            setRefineImage(file);
+                            const reader = new FileReader();
+                            reader.onload = (e) => {
+                              setRefineImagePreview(e.target?.result as string);
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                      />
+                    </label>
+                  ) : (
+                    <div className="relative rounded-xl overflow-hidden border border-[var(--color-border)]">
+                      <img
+                        src={refineImagePreview}
+                        alt="Upload preview"
+                        className="w-full h-auto max-h-48 object-contain bg-[var(--color-surface)]"
+                      />
+                      <button
+                        onClick={() => {
+                          setRefineImage(null);
+                          setRefineImagePreview(null);
+                        }}
+                        className={cn(
+                          "absolute top-2 right-2 p-1.5 rounded-lg",
+                          "bg-red-500/90 hover:bg-red-500 text-white transition-colors",
+                        )}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                      {refineImage && (
+                        <div className="px-3 py-2 bg-[var(--color-surface)] border-t border-[var(--color-border)]">
+                          <p className="text-[10px] text-[var(--color-text-muted)] truncate">
+                            {refineImage.name} ·{" "}
+                            {(refineImage.size / 1024).toFixed(1)} KB
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {error && (
                 <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs">
@@ -859,29 +1021,36 @@ export function CodeBuilderSection({ onBack }: CodeBuilderSectionProps) {
               )}
 
               <div className="flex gap-2">
-                <button
-                  onClick={isRefining ? handleStop : handleRefine}
-                  disabled={!refineFeedback.trim() && !isRefining}
-                  className={cn(
-                    "flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all",
-                    "shadow-sm hover:shadow-md active:scale-[0.98]",
-                    isRefining
-                      ? "bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20"
-                      : "bg-white text-black hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed",
-                  )}
-                >
-                  {isRefining ? (
-                    <>
-                      <Loader2 size={15} className="animate-spin" />
-                      Stop
-                    </>
-                  ) : (
-                    <>
-                      <Wrench size={15} />
-                      Refine
-                    </>
-                  )}
-                </button>
+                {(() => {
+                  const isBusy = isRefining || isExplaining;
+                  const config = MODE_CONFIG[activeMode];
+                  const Icon = config.icon;
+                  return (
+                    <button
+                      onClick={isBusy ? handleStop : handleModeSubmit}
+                      disabled={!refineFeedback.trim() && !isBusy}
+                      className={cn(
+                        "flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all",
+                        "shadow-sm hover:shadow-md active:scale-[0.98]",
+                        isBusy
+                          ? "bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20"
+                          : cn(config.activeColor, "disabled:opacity-40 disabled:cursor-not-allowed"),
+                      )}
+                    >
+                      {isBusy ? (
+                        <>
+                          <Loader2 size={15} className="animate-spin" />
+                          Stop
+                        </>
+                      ) : (
+                        <>
+                          <Icon size={15} />
+                          {config.label}
+                        </>
+                      )}
+                    </button>
+                  );
+                })()}
                 <button
                   onClick={handleNewProject}
                   className={cn(
@@ -905,7 +1074,7 @@ export function CodeBuilderSection({ onBack }: CodeBuilderSectionProps) {
                   >
                     <span className="flex items-center gap-1.5">
                       <Send size={12} />
-                      Refinement log
+                      {activeMode === "explain" ? "Explain" : "Refinement"} log
                     </span>
                     {showLog ? (
                       <ChevronUp size={14} />
