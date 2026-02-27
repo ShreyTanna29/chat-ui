@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import sdk from "@stackblitz/sdk";
 import type { VM } from "@stackblitz/sdk";
+import JSZip from "jszip";
 import {
   Code2,
   Play,
@@ -18,6 +19,7 @@ import {
   Trash2,
   Bug,
   MessageSquareText,
+  Download,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -202,32 +204,45 @@ interface CodeBuilderSectionProps {
 
 type ActiveMode = "refine" | "refactor" | "fix" | "explain";
 
-const MODE_CONFIG: Record<ActiveMode, { icon: typeof Wrench; label: string; placeholder: string; color: string; activeColor: string }> = {
+const MODE_CONFIG: Record<
+  ActiveMode,
+  {
+    icon: typeof Wrench;
+    label: string;
+    placeholder: string;
+    color: string;
+    activeColor: string;
+  }
+> = {
   refine: {
     icon: Wrench,
     label: "Refine",
-    placeholder: "Describe changes you want…\n\ne.g. Add dark mode, improve the button styles, and add a search filter.",
+    placeholder:
+      "Describe changes you want…\n\ne.g. Add dark mode, improve the button styles, and add a search filter.",
     color: "text-[var(--color-text-muted)]",
     activeColor: "bg-white text-black",
   },
   refactor: {
     icon: RefreshCw,
     label: "Refactor",
-    placeholder: "Describe what to refactor…\n\ne.g. Extract the form logic into a custom hook and split the page into smaller components.",
+    placeholder:
+      "Describe what to refactor…\n\ne.g. Extract the form logic into a custom hook and split the page into smaller components.",
     color: "text-blue-400",
     activeColor: "bg-blue-500 text-white",
   },
   fix: {
     icon: Bug,
     label: "Fix",
-    placeholder: "Describe the bug or issue to fix…\n\ne.g. The submit button doesn't disable while loading, causing duplicate submissions.",
+    placeholder:
+      "Describe the bug or issue to fix…\n\ne.g. The submit button doesn't disable while loading, causing duplicate submissions.",
     color: "text-red-400",
     activeColor: "bg-red-500 text-white",
   },
   explain: {
     icon: MessageSquareText,
     label: "Explain",
-    placeholder: "Ask a question about this code…\n\ne.g. How does the authentication flow work? What does the useEffect in App.tsx do?",
+    placeholder:
+      "Ask a question about this code…\n\ne.g. How does the authentication flow work? What does the useEffect in App.tsx do?",
     color: "text-emerald-400",
     activeColor: "bg-emerald-500 text-white",
   },
@@ -578,6 +593,32 @@ export function CodeBuilderSection({ onBack }: CodeBuilderSectionProps) {
     }
   }, [activeMode, handleExplain, handleRefine]);
 
+  const handleDownload = useCallback(async () => {
+    if (generatedFiles.length === 0) return;
+    const zip = new JSZip();
+    const name = projectName.trim() || "react-app";
+
+    // Build the full file set (same logic as updateEmbedFiles)
+    const allFiles: Record<string, string> = { ...DEFAULT_TEMPLATE_FILES };
+    for (const f of generatedFiles) {
+      if (f.path === "package.json") continue;
+      allFiles[f.path] = f.content;
+    }
+    allFiles["package.json"] = buildPackageJsonFromFiles(generatedFiles, name);
+
+    for (const [filePath, content] of Object.entries(allFiles)) {
+      zip.file(filePath, content);
+    }
+
+    const blob = await zip.generateAsync({ type: "blob" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${name}.zip`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [generatedFiles, projectName]);
+
   return (
     <div className="flex flex-col h-full bg-[var(--color-bg)] text-[var(--color-text-primary)]">
       {/* Header */}
@@ -603,18 +644,33 @@ export function CodeBuilderSection({ onBack }: CodeBuilderSectionProps) {
         </div>
         <div className="ml-auto flex items-center gap-2">
           {hasProject && (
-            <button
-              onClick={handleNewProject}
-              className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
-                "border border-[var(--color-border)] hover:border-[var(--color-border-hover)]",
-                "bg-[var(--color-surface-hover)] hover:bg-[var(--color-surface-active)]",
-                "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]",
-              )}
-            >
-              <RefreshCw size={14} />
-              New Project
-            </button>
+            <>
+              <button
+                onClick={handleDownload}
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
+                  "border border-[var(--color-border)] hover:border-emerald-500/50",
+                  "bg-[var(--color-surface-hover)] hover:bg-emerald-500/10",
+                  "text-[var(--color-text-secondary)] hover:text-emerald-400",
+                )}
+                title="Download project as ZIP"
+              >
+                <Download size={14} />
+                Download
+              </button>
+              <button
+                onClick={handleNewProject}
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
+                  "border border-[var(--color-border)] hover:border-[var(--color-border-hover)]",
+                  "bg-[var(--color-surface-hover)] hover:bg-[var(--color-surface-active)]",
+                  "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]",
+                )}
+              >
+                <RefreshCw size={14} />
+                New Project
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -1034,7 +1090,10 @@ export function CodeBuilderSection({ onBack }: CodeBuilderSectionProps) {
                         "shadow-sm hover:shadow-md active:scale-[0.98]",
                         isBusy
                           ? "bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20"
-                          : cn(config.activeColor, "disabled:opacity-40 disabled:cursor-not-allowed"),
+                          : cn(
+                              config.activeColor,
+                              "disabled:opacity-40 disabled:cursor-not-allowed",
+                            ),
                       )}
                     >
                       {isBusy ? (
