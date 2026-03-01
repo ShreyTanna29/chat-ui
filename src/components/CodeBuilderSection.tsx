@@ -20,12 +20,14 @@ import {
   Bug,
   MessageSquareText,
   Download,
+  Rocket,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   type CodeFile,
   streamGenerateCode,
   streamRefineCode,
+  publishProject,
 } from "@/services/codebuilder";
 
 // Well-known npm packages and their latest stable versions
@@ -267,6 +269,7 @@ export function CodeBuilderSection({ onBack }: CodeBuilderSectionProps) {
   // Refine mode
   const [refineFeedback, setRefineFeedback] = useState("");
   const [isRefining, setIsRefining] = useState(false);
+  const [isDeploying, setIsDeploying] = useState(false);
   const [refineImage, setRefineImage] = useState<File | null>(null);
   const [refineImagePreview, setRefineImagePreview] = useState<string | null>(
     null,
@@ -593,6 +596,23 @@ export function CodeBuilderSection({ onBack }: CodeBuilderSectionProps) {
     }
   }, [activeMode, handleExplain, handleRefine]);
 
+  const handleDeploy = useCallback(async () => {
+    if (generatedFiles.length === 0 || isDeploying) return;
+    setIsDeploying(true);
+    setError(null);
+    try {
+      const slug = await publishProject(
+        projectName.trim() || "react-app",
+        generatedFiles,
+      );
+      window.open(`/preview/${slug}`, "_blank");
+    } catch (err) {
+      setError((err as Error).message || "Deploy failed");
+    } finally {
+      setIsDeploying(false);
+    }
+  }, [generatedFiles, projectName, isDeploying]);
+
   const handleDownload = useCallback(async () => {
     if (generatedFiles.length === 0) return;
     const zip = new JSZip();
@@ -645,6 +665,25 @@ export function CodeBuilderSection({ onBack }: CodeBuilderSectionProps) {
         <div className="ml-auto flex items-center gap-2">
           {hasProject && (
             <>
+              <button
+                onClick={handleDeploy}
+                disabled={isDeploying}
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
+                  "border border-[var(--color-border)] hover:border-violet-500/50",
+                  "bg-[var(--color-surface-hover)] hover:bg-violet-500/10",
+                  "text-[var(--color-text-secondary)] hover:text-violet-400",
+                  "disabled:opacity-50 disabled:cursor-not-allowed",
+                )}
+                title="Deploy — get a shareable live URL on this domain"
+              >
+                {isDeploying ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : (
+                  <Rocket size={14} />
+                )}
+                {isDeploying ? "Deploying…" : "Deploy"}
+              </button>
               <button
                 onClick={handleDownload}
                 className={cn(

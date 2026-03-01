@@ -1,4 +1,4 @@
-import { apiRawFetch } from "./api";
+import { apiFetch, apiRawFetch, API_BASE_URL } from "./api";
 
 export interface CodeFile {
   path: string;
@@ -65,6 +65,39 @@ export async function* streamGenerateCode(
   yield* parseSSEStream(response);
 }
 
+export interface PublishedProject {
+  slug: string;
+  name: string;
+  files: CodeFile[];
+  createdAt: string;
+}
+
+/** Save all project files to the backend and return the shareable slug. */
+export async function publishProject(
+  name: string,
+  files: CodeFile[],
+): Promise<string> {
+  const result = await apiFetch<{ slug: string }>("/api/codebuilder/projects", {
+    method: "POST",
+    body: JSON.stringify({ name, files }),
+  });
+  if (!result.success || !result.data?.slug) {
+    throw new Error(result.message || "Failed to publish project");
+  }
+  return result.data.slug;
+}
+
+/** Fetch a published project by slug (no auth required). */
+export async function fetchProject(slug: string): Promise<PublishedProject> {
+  const res = await fetch(
+    `${API_BASE_URL}/api/codebuilder/projects/${encodeURIComponent(slug)}`,
+  );
+  const data = await res.json();
+  if (!res.ok || !data.success) {
+    throw new Error(data.message || "Project not found");
+  }
+  return data.project as PublishedProject;
+}
 export async function* streamRefineCode(
   files: Pick<CodeFile, "path" | "content">[],
   feedback: string,

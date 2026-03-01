@@ -5,6 +5,7 @@ import "./index.css";
 import App from "./App.tsx";
 import { SharedChatPage } from "@/components/SharedChatPage";
 import { PrivacyPolicy } from "@/components/PrivacyPolicy";
+import { PreviewPage } from "@/components/PreviewPage";
 import { AuthProvider } from "@/contexts/AuthContext";
 
 createRoot(document.getElementById("root")!).render(
@@ -14,6 +15,7 @@ createRoot(document.getElementById("root")!).render(
         <Routes>
           <Route path="/shared/:shareId" element={<SharedChatPage />} />
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+          <Route path="/preview/:slug" element={<PreviewPage />} />
           <Route path="/*" element={<App />} />
         </Routes>
       </AuthProvider>
