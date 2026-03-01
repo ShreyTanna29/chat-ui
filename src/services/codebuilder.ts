@@ -6,9 +6,20 @@ export interface CodeFile {
   type: string;
 }
 
+export interface TokenUsage {
+  prompt_tokens: number;
+  completion_tokens: number;
+  total_tokens: number;
+}
+
 export type StreamEvent =
   | { type: "chunk"; content: string }
-  | { type: "complete"; files: CodeFile[]; totalFiles: number }
+  | {
+      type: "complete";
+      files: CodeFile[];
+      totalFiles: number;
+      usage?: TokenUsage | null;
+    }
   | { type: "error"; message: string; code?: string };
 
 async function* parseSSEStream(

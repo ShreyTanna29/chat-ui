@@ -25,6 +25,7 @@ import {
 import { cn } from "@/lib/utils";
 import {
   type CodeFile,
+  type TokenUsage,
   streamGenerateCode,
   streamRefineCode,
   publishProject,
@@ -281,6 +282,10 @@ export function CodeBuilderSection({ onBack }: CodeBuilderSectionProps) {
   const [isExplaining, setIsExplaining] = useState(false);
   const [showExplanation, setShowExplanation] = useState(false);
 
+  // Token usage tracking
+  const [lastUsage, setLastUsage] = useState<TokenUsage | null>(null);
+  const [totalTokensUsed, setTotalTokensUsed] = useState(0);
+
   // Stable outer wrapper — React manages this ref, StackBlitz never touches it
   const embedWrapperRef = useRef<HTMLDivElement>(null);
   const vmRef = useRef<VM | null>(null);
@@ -426,6 +431,10 @@ export function CodeBuilderSection({ onBack }: CodeBuilderSectionProps) {
         } else if (event.type === "complete") {
           finalFiles = event.files;
           setGeneratedFiles(finalFiles);
+          if (event.usage) {
+            setLastUsage(event.usage);
+            setTotalTokensUsed((prev) => prev + event.usage!.total_tokens);
+          }
           await updateEmbedFiles(
             finalFiles,
             projectName.trim() || "Code Builder",
@@ -492,6 +501,10 @@ export function CodeBuilderSection({ onBack }: CodeBuilderSectionProps) {
           for (const f of event.files) {
             if (!merged.find((m) => m.path === f.path)) merged.push(f);
           }
+          if (event.usage) {
+            setLastUsage(event.usage);
+            setTotalTokensUsed((prev) => prev + event.usage!.total_tokens);
+          }
           setGeneratedFiles(merged);
           await updateEmbedFiles(merged, projectName.trim() || "Code Builder");
           setRefineFeedback("");
@@ -551,6 +564,10 @@ export function CodeBuilderSection({ onBack }: CodeBuilderSectionProps) {
           setExplanation(accExplanation);
         } else if (event.type === "complete") {
           // Do NOT update code files — explanation only
+          if (event.usage) {
+            setLastUsage(event.usage);
+            setTotalTokensUsed((prev) => prev + event.usage!.total_tokens);
+          }
           setRefineFeedback("");
         } else if (event.type === "error") {
           setError(event.message);
@@ -584,6 +601,8 @@ export function CodeBuilderSection({ onBack }: CodeBuilderSectionProps) {
     setActiveMode("refine");
     setExplanation("");
     setShowExplanation(false);
+    setLastUsage(null);
+    setTotalTokensUsed(0);
     // Reset the StackBlitz embed back to the welcome placeholder
     remountEmbed(DEFAULT_TEMPLATE_FILES, "src/App.jsx", "Code Builder");
   }, [remountEmbed]);
@@ -879,6 +898,38 @@ export function CodeBuilderSection({ onBack }: CodeBuilderSectionProps) {
                 )}
               </button>
 
+              {/* Token usage */}
+              {lastUsage && (
+                <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 space-y-1">
+                  <p className="text-[10px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">
+                    Last Request · Token Usage
+                  </p>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] text-[var(--color-text-muted)]">
+                      <span className="text-[var(--color-text-secondary)]">
+                        {lastUsage.prompt_tokens.toLocaleString()}
+                      </span>{" "}
+                      prompt &nbsp;·&nbsp;
+                      <span className="text-[var(--color-text-secondary)]">
+                        {lastUsage.completion_tokens.toLocaleString()}
+                      </span>{" "}
+                      completion
+                    </span>
+                    <span className="text-[11px] font-bold text-[var(--color-text-primary)]">
+                      {lastUsage.total_tokens.toLocaleString()} total
+                    </span>
+                  </div>
+                  {totalTokensUsed !== lastUsage.total_tokens && (
+                    <p className="text-[10px] text-[var(--color-text-muted)]">
+                      Session total:{" "}
+                      <span className="text-[var(--color-text-secondary)] font-medium">
+                        {totalTokensUsed.toLocaleString()}
+                      </span>
+                    </p>
+                  )}
+                </div>
+              )}
+
               {/* Stream log */}
               {streamLog && (
                 <div className="rounded-xl border border-[var(--color-border)] overflow-hidden">
@@ -1162,6 +1213,38 @@ export function CodeBuilderSection({ onBack }: CodeBuilderSectionProps) {
                   <Play size={15} />
                 </button>
               </div>
+
+              {/* Token usage */}
+              {lastUsage && (
+                <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 space-y-1">
+                  <p className="text-[10px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">
+                    Last Request · Token Usage
+                  </p>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] text-[var(--color-text-muted)]">
+                      <span className="text-[var(--color-text-secondary)]">
+                        {lastUsage.prompt_tokens.toLocaleString()}
+                      </span>{" "}
+                      prompt &nbsp;·&nbsp;
+                      <span className="text-[var(--color-text-secondary)]">
+                        {lastUsage.completion_tokens.toLocaleString()}
+                      </span>{" "}
+                      completion
+                    </span>
+                    <span className="text-[11px] font-bold text-[var(--color-text-primary)]">
+                      {lastUsage.total_tokens.toLocaleString()} total
+                    </span>
+                  </div>
+                  {totalTokensUsed !== lastUsage.total_tokens && (
+                    <p className="text-[10px] text-[var(--color-text-muted)]">
+                      Session total:{" "}
+                      <span className="text-[var(--color-text-secondary)] font-medium">
+                        {totalTokensUsed.toLocaleString()}
+                      </span>
+                    </p>
+                  )}
+                </div>
+              )}
 
               {/* Stream log */}
               {streamLog && (
